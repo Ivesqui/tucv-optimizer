@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>CV - Ana García López</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Source Sans 3', Arial, sans-serif;
+    font-size: 10.5pt;
+    color: #111;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 30px 40px;
+    line-height: 1.5;
+  }
+  h1 { font-family: 'Source Serif 4', Georgia, serif; font-size: 22pt; text-align: center; }
+  .contact-line { text-align: center; font-size: 9pt; color: #555; margin: 4px 0 12px; }
+  h2 {
+    font-size: 10.5pt; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #1a4db3; border-bottom: 1px solid #ccc;
+    padding-bottom: 2px; margin: 14px 0 8px;
+  }
+  .entry { margin-bottom: 10px; }
+  .entry-header { display: flex; justify-content: space-between; }
+  .org { font-weight: 600; }
+  .date { font-size: 9pt; color: #555; }
+  .role { font-weight: 600; color: #1a4db3; margin: 1px 0; }
+  ul { padding-left: 14px; margin: 4px 0; }
+  li { margin-bottom: 2px; }
+  .stack { font-size: 9pt; color: #555; font-style: italic; margin-top: 2px; }
+  .cert { margin-bottom: 3px; }
+  @media print {
+    body { padding: 15px 20px; }
+    h2 { page-break-after: avoid; }
+    .entry { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+  <h1>Ana García López</h1>
+  <div class="contact-line">ana.garcia@email.com &nbsp;|&nbsp; +57 300 123 4567 &nbsp;|&nbsp; Bogotá, Colombia &nbsp;|&nbsp; linkedin.com/in/anagarcia &nbsp;|&nbsp; github.com/anagarcia &nbsp;|&nbsp; anagarcia.dev</div>
+  <section><h2>Perfil Profesional</h2><p>Desarrolladora Full Stack con 5+ años de experiencia construyendo aplicaciones web escalables con React, Node.js y AWS. Especializada en optimización de rendimiento y arquitecturas de microservicios. Apasionada por el código limpio, la automatización y los equipos ágiles.</p></section>
+  <section>
+    <h2>Habilidades Técnicas</h2>
+    <p>Python  ·  JavaScript  ·  TypeScript  ·  React  ·  Node.js  ·  FastAPI  ·  PostgreSQL  ·  MongoDB  ·  Redis  ·  Docker  ·  AWS  ·  Git  ·  GraphQL  ·  REST</p>
+    <p class='stack'>Soft skills: Liderazgo  ·  Comunicación  ·  Trabajo en equipo  ·  Resolución de problemas  ·  Autonomía</p>
+  </section>
+  <section><h2>Experiencia Profesional</h2>
+        <div class="entry">
+          <div class="entry-header">
+            <span class="org">Bancolombia</span>
+            <span class="date">Ene 2022 – Presente</span>
+          </div>
+          <div class="role">Senior Software Engineer — Bogotá, Colombia</div>
+          <ul><li>Lideré la migración de un monolito a microservicios en AWS, reduciendo el tiempo de deploy de 2h a 8min y mejorando la disponibilidad al 99.9%.</li><li>Implementé un sistema de caché con Redis que redujo la latencia de las APIs críticas en un 60%, beneficiando a 500k usuarios activos.</li><li>Desarrollé un pipeline CI/CD con GitHub Actions que automatizó el 100% de los despliegues y redujo errores en producción en un 40%.</li><li>Diseñé e implementé la arquitectura de un módulo de pagos que procesó $2M USD en transacciones en el primer mes.</li></ul>
+          <div class="stack">Stack: Python, FastAPI, PostgreSQL, Redis, Docker, AWS, GitHub Actions</div>
+        </div>
+        <div class="entry">
+          <div class="entry-header">
+            <span class="org">Rappi</span>
+            <span class="date">Mar 2020 – Dic 2021</span>
+          </div>
+          <div class="role">Full Stack Developer — Bogotá, Colombia</div>
+          <ul><li>Construí el dashboard de analytics para restaurantes aliados, adoptado por 3,000+ negocios en 6 meses.</li><li>Optimicé consultas SQL críticas reduciendo el tiempo de carga del panel de 12s a 800ms.</li><li>Integré la API de Google Maps para funcionalidad de tracking en tiempo real con WebSockets.</li></ul>
+          <div class="stack">Stack: React, TypeScript, Node.js, PostgreSQL, WebSocket, Google Maps API</div>
+        </div></section>
+  <section><h2>Proyectos Destacados</h2>
+        <div class="entry">
+          <div class="role">OptiCV — Este proyecto</div>
+          <p>Herramienta open source para optimizar CVs y calcular ATS score sin depender de IA costosa. Usa NLP basado en diccionarios curados y generación de PDF.</p>
+          <div class="stack">Tech: Python, FastAPI, fpdf2, spaCy, HTML/CSS/JS</div>
+          <ul><li>Detecta 100+ skills técnicas y blandas automáticamente.</li><li>Genera PDFs ATS-friendly y JSON reutilizable para autofill de formularios.</li></ul>
+          <div class="stack"><a href="github.com/anagarcia/opticv">github.com/anagarcia/opticv</a></div>
+        </div></section>
+  <section><h2>Educación</h2>
+        <div class="entry">
+          <div class="entry-header">
+            <span class="org">Universidad de los Andes</span>
+            <span class="date">2015 – 2020</span>
+          </div>
+          <div class="role">Ingeniería de Sistemas en Computación</div>
+        </div></section>
+  <section><h2>Certificaciones</h2><div class="cert">AWS Certified Solutions Architect — Associate — Amazon Web Services (2023)</div><div class="cert">Professional Scrum Master I (PSM I) — Scrum.org (2022)</div></section>
+  <section><h2>Idiomas</h2><p>Español (Nativo)  ·  Inglés (B2 — IELTS 7.0)  ·  Portugués (A2)</p></section>
+</body>
+</html>

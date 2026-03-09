@@ -1,0 +1,84 @@
+{
+  "contact": {
+    "name": "Ana García López",
+    "email": "ana.garcia@email.com",
+    "phone": "+57 300 123 4567",
+    "location": "Bogotá, Colombia",
+    "linkedin": "linkedin.com/in/anagarcia",
+    "github": "github.com/anagarcia",
+    "portfolio": "anagarcia.dev"
+  },
+  "summary": "Desarrolladora Full Stack con 5+ años de experiencia construyendo aplicaciones web escalables con React, Node.js y AWS. Especializada en optimización de rendimiento y arquitecturas de microservicios. Apasionada por el código limpio, la automatización y los equipos ágiles.",
+  "skills": [
+    "Python", "JavaScript", "TypeScript", "React", "Node.js", "FastAPI",
+    "PostgreSQL", "MongoDB", "Redis", "Docker", "AWS", "Git", "GraphQL", "REST"
+  ],
+  "soft_skills": ["Liderazgo", "Comunicación", "Trabajo en equipo", "Resolución de problemas", "Autonomía"],
+  "languages": ["Español (Nativo)", "Inglés (B2 — IELTS 7.0)", "Portugués (A2)"],
+  "experience": [
+    {
+      "company": "Bancolombia",
+      "position": "Senior Software Engineer",
+      "start_date": "Ene 2022",
+      "end_date": "Presente",
+      "location": "Bogotá, Colombia",
+      "bullets": [
+        "Lideré la migración de un monolito a microservicios en AWS, reduciendo el tiempo de deploy de 2h a 8min y mejorando la disponibilidad al 99.9%.",
+        "Implementé un sistema de caché con Redis que redujo la latencia de las APIs críticas en un 60%, beneficiando a 500k usuarios activos.",
+        "Desarrollé un pipeline CI/CD con GitHub Actions que automatizó el 100% de los despliegues y redujo errores en producción en un 40%.",
+        "Diseñé e implementé la arquitectura de un módulo de pagos que procesó $2M USD en transacciones en el primer mes."
+      ],
+      "skills_used": ["Python", "FastAPI", "PostgreSQL", "Redis", "Docker", "AWS", "GitHub Actions"]
+    },
+    {
+      "company": "Rappi",
+      "position": "Full Stack Developer",
+      "start_date": "Mar 2020",
+      "end_date": "Dic 2021",
+      "location": "Bogotá, Colombia",
+      "bullets": [
+        "Construí el dashboard de analytics para restaurantes aliados, adoptado por 3,000+ negocios en 6 meses.",
+        "Optimicé consultas SQL críticas reduciendo el tiempo de carga del panel de 12s a 800ms.",
+        "Integré la API de Google Maps para funcionalidad de tracking en tiempo real con WebSockets."
+      ],
+      "skills_used": ["React", "TypeScript", "Node.js", "PostgreSQL", "WebSocket", "Google Maps API"]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universidad de los Andes",
+      "degree": "Ingeniería de Sistemas",
+      "field_of_study": "Computación",
+      "start_date": "2015",
+      "end_date": "2020",
+      "gpa": "4.2/5.0",
+      "highlights": ["Mejor proyecto de grado 2020", "Monitora de Algoritmos y Estructuras de Datos"]
+    }
+  ],
+  "projects": [
+    {
+      "name": "OptiCV — Este proyecto",
+      "description": "Herramienta open source para optimizar CVs y calcular ATS score sin depender de IA costosa. Usa NLP basado en diccionarios curados y generación de PDF.",
+      "tech_stack": ["Python", "FastAPI", "fpdf2", "spaCy", "HTML/CSS/JS"],
+      "url": "github.com/anagarcia/opticv",
+      "highlights": [
+        "Detecta 100+ skills técnicas y blandas automáticamente.",
+        "Genera PDFs ATS-friendly y JSON reutilizable para autofill de formularios."
+      ]
+    }
+  ],
+  "certifications": [
+    {
+      "name": "AWS Certified Solutions Architect — Associate",
+      "issuer": "Amazon Web Services",
+      "date": "2023",
+      "url": "credly.com/badges/abc123"
+    },
+    {
+      "name": "Professional Scrum Master I (PSM I)",
+      "issuer": "Scrum.org",
+      "date": "2022",
+      "url": ""
+    }
+  ]
+}
