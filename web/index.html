@@ -416,7 +416,7 @@ Trabajé con el equipo en el diseño de APIs"></textarea>
 
 <script>
 // ─── State ────────────────────────────────────────────────────────────────
-const API = 'http://localhost:8000';
+const API = 'http://localhost:8000/api';
 let experiences = [];
 let education = [];
 let projects = [];
@@ -662,7 +662,7 @@ function renderAnalysisLocal(offerText) {
       <div class="card-title" style="margin-top:8px"><span>🔍</span> Skills detectadas en la oferta</div>
       <div class="tags">${found.map(s=>`<span class="tag tag-neutral">${s}</span>`).join('')}</div>
       <div style="margin-top:12px; font-size:13px; color:var(--muted)">
-        Inicia el servidor: <code style="font-family:var(--mono); background:var(--surface2); padding:2px 6px; border-radius:4px">uvicorn api.main:app --reload</code>
+        Inicia el servidor: <code style="font-family:var(--mono); background:var(--surface2); padding:2px 6px; border-radius:4px">uvicorn app.main:app --reload</code>
       </div>
     </div>`;
 }

@@ -1,5 +1,5 @@
 """
-cv_model.py
+domain/cv_model.py
 Modelo de datos del CV + lógica de optimización automática.
 """
 
