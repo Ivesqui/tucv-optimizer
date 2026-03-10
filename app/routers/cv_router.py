@@ -9,9 +9,9 @@ from app.schemas.cv_schema import (
     BulletQualityRequest
 )
 
-from app.services.skills_detector import detect_skills, compare_cv_vs_offer
+from app.infrastructure.nlp.skills_detector import detect_skills, compare_cv_vs_offer
 from app.models.cv_model import CVProfile, optimize_cv, analyze_bullet_quality
-from app.services.pdf_generator import ATSPDFGenerator, generate_html_cv, FPDF_AVAILABLE
+from app.infrastructure.exporters.pdf_generator import ATSPDFGenerator, generate_html_cv, FPDF_AVAILABLE
 
 router = APIRouter(prefix="/cv", tags=["CV"])
 
