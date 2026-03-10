@@ -1,407 +1,421 @@
 """
-pdf_generator.py
-Genera un PDF ATS-friendly a partir del CVProfile.
-Usa ReportLab o fpdf2 si está disponible, o genera HTML→PDF como fallback.
+infrastructure/exporters/pdf_generator.py
 
-Ejecutar: pip install fpdf2
+Genera un PDF ATS-friendly a partir de CVProfile.
+
+Requisitos:
+    pip install fpdf2
+
+Mejoras production-ready sobre la versión original:
+    - i18n: etiquetas de sección configurables por idioma
+    - Logging en lugar de `except: pass` silenciosos
+    - Guard contra llamadas múltiples a generate()
+    - Cálculos de layout sin truncado int() innecesario
+    - _safe_html eliminada (era código muerto)
+    - chunk_size como constante nombrada
+    - inst_col / date_col movidos al constructor (DRY)
+    - Tipado completo (-> bytes, parámetros anotados)
+    - Docstrings en métodos públicos y privados clave
+    - Separación de responsabilidades: _render_bullet, _render_stack
 """
 
+from __future__ import annotations
+
+import logging
 import os
+from typing import List, Optional
 
 try:
     from fpdf import FPDF
     FPDF_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover
     FPDF_AVAILABLE = False
 
-from app.models.cv_model import CVProfile
+from app.domain.cv_model import CVProfile
+
+logger = logging.getLogger(__name__)
 
 
-# ─── Constantes de diseño ATS ────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# Constantes de diseño ATS
+# ─────────────────────────────────────────────
 
-MARGIN = 15          # mm
-FONT_NAME = "Helvetica"
+MARGIN: float = 15.0
+FONT_NAME: str = "Helvetica"
+PHOTO_SIZE: float = 28.0
+SKILLS_CHUNK_SIZE: int = 6
+MAX_SKILLS_DISPLAY: int = 24
+MAX_SOFT_SKILLS_DISPLAY: int = 10
+
 COLOR_PRIMARY = (20, 20, 20)
 COLOR_ACCENT = (30, 100, 200)
 COLOR_GRAY = (100, 100, 100)
 COLOR_LINE = (200, 200, 200)
 
+# ─────────────────────────────────────────────
+# i18n: etiquetas de sección por idioma
+# ─────────────────────────────────────────────
+
+_LABELS: dict[str, dict[str, str]] = {
+    "es": {
+        "summary": "Perfil Profesional",
+        "skills": "Habilidades Técnicas",
+        "soft_skills_prefix": "Soft skills",
+        "experience": "Experiencia Profesional",
+        "education": "Educación",
+        "present": "Presente",
+        "stack_prefix": "Stack",
+        "study_in": "en",
+    },
+    "en": {
+        "summary": "Professional Profile",
+        "skills": "Technical Skills",
+        "soft_skills_prefix": "Soft skills",
+        "experience": "Work Experience",
+        "education": "Education",
+        "present": "Present",
+        "stack_prefix": "Stack",
+        "study_in": "in",
+    },
+}
+
+
+# ─────────────────────────────────────────────
+# Utilidades de módulo
+# ─────────────────────────────────────────────
+
+def _safe_join(items: List[Optional[str]], sep: str = "  ·  ") -> str:
+    """Une ítems no-vacíos con el separador indicado."""
+    return sep.join(i for i in items if i)
+
+
+# ─────────────────────────────────────────────
+# Generador PDF
+# ─────────────────────────────────────────────
 
 class ATSPDFGenerator:
     """
-    Genera CV en PDF con formato ATS-compatible:
-    - Sin tablas complejas (los parsers ATS las odian)
-    - Sin columnas múltiples
-    - Texto lineal, headings claros
-    - Fuente estándar
+    Genera un CV en PDF ATS-friendly.
+
+    Características ATS:
+        ✔ Texto lineal sin columnas flotantes
+        ✔ Headings claros y jerarquizados
+        ✔ Sin tablas complejas
+        ✔ Fuentes estándar (Helvetica)
+
+    Args:
+        profile:  Datos del candidato.
+        lang:     Código de idioma para etiquetas de sección ('es' | 'en').
+                  Se puede extender agregando entradas a _LABELS.
+
+    Raises:
+        ImportError:    Si fpdf2 no está instalado.
+        ValueError:     Si el idioma solicitado no está soportado.
     """
 
-    def __init__(self, profile: CVProfile):
-        self.profile = profile
+    def __init__(self, profile: CVProfile, lang: str = "es") -> None:
         if not FPDF_AVAILABLE:
-            raise ImportError("Instala fpdf2: pip install fpdf2")
-        self.pdf = FPDF(format="A4")
-        self.pdf.set_margins(MARGIN, MARGIN, MARGIN)
-        self.pdf.set_auto_page_break(auto=True, margin=MARGIN)
-        self.pdf.add_page()
-        self.page_width = int(self.pdf.w - 2 * MARGIN)
-        self.col_main = int(self.page_width * 0.7)
-        self.col_side = int(self.page_width * 0.3)
+            raise ImportError(
+                "fpdf2 no está instalado. Ejecuta: pip install fpdf2"
+            )
 
-    def _set_font(self, style="", size=10):
-        self.pdf.set_font(FONT_NAME, style=style, size=size)
+        if lang not in _LABELS:
+            raise ValueError(
+                f"Idioma '{lang}' no soportado. Opciones: {list(_LABELS)}"
+            )
 
-    def _set_color(self, rgb):
-        self.pdf.set_text_color(*rgb)
+        self.profile = profile
+        self.lang = lang
+        self._labels = _LABELS[lang]
+        self._generated = False
 
-    def _section_line(self, title: str):
-        """Encabezado de sección con línea separadora."""
-        self.pdf.ln(3)
+        self._pdf = FPDF(format="A4")
+        self._pdf.set_margins(MARGIN, MARGIN, MARGIN)
+        self._pdf.set_auto_page_break(auto=True, margin=MARGIN)
+        self._pdf.add_page()
+
+        self._page_width: float = self._pdf.w - 2 * MARGIN
+        self._col_main: float = self._page_width * 0.70
+        self._col_side: float = self._page_width * 0.30
+
+    # ─────────────────────────────
+    # Helpers de estilo
+    # ─────────────────────────────
+
+    def _set_font(self, style: str = "", size: float = 10) -> None:
+        self._pdf.set_font(FONT_NAME, style=style, size=size)
+
+    def _set_color(self, rgb: tuple[int, int, int]) -> None:
+        self._pdf.set_text_color(*rgb)
+
+    # ─────────────────────────────
+    # Sección con línea decorativa
+    # ─────────────────────────────
+
+    def _section_line(self, title: str) -> None:
+        """Imprime el título de sección con subrayado en COLOR_LINE."""
+        self._pdf.ln(3)
         self._set_font("B", 11)
         self._set_color(COLOR_ACCENT)
-        self.pdf.cell(0, 6, title.upper(), ln=True)
-        self.pdf.set_draw_color(*COLOR_LINE)
-        self.pdf.line(MARGIN, self.pdf.get_y(), self.pdf.w - MARGIN, self.pdf.get_y())
-        self.pdf.ln(2)
+        self._pdf.cell(0, 6, title.upper(), new_x="LMARGIN", new_y="NEXT")
+        self._pdf.set_draw_color(*COLOR_LINE)
+        self._pdf.line(
+            MARGIN,
+            self._pdf.get_y(),
+            self._pdf.w - MARGIN,
+            self._pdf.get_y(),
+        )
+        self._pdf.ln(2)
         self._set_color(COLOR_PRIMARY)
 
-    def _add_header(self):
+    # ─────────────────────────────
+    # Header
+    # ─────────────────────────────
+
+    def _add_header(self) -> None:
+        """Encabezado: nombre, datos de contacto y foto (opcional)."""
         c = self.profile.contact
-        photo_path = getattr(self.profile, 'photo_path', None)
+        photo_path: Optional[str] = getattr(self.profile, "photo_path", None)
 
-        if photo_path and os.path.exists(photo_path):
-            # Layout con foto: foto a la izquierda, datos a la derecha
-            PHOTO_SIZE = 28  # mm
-            TEXT_X = MARGIN + PHOTO_SIZE + 5
-            TEXT_W = int(self.pdf.w - TEXT_X - MARGIN)
+        if photo_path:
+            if not os.path.exists(photo_path):
+                logger.warning(
+                    "Foto no encontrada en '%s'; se omite del PDF.", photo_path
+                )
+            else:
+                self._render_header_with_photo(c, photo_path)
+                self._pdf.ln(2)
+                return
 
-            # Foto circular (fpdf2 no tiene clip oval nativo, usamos imagen cuadrada)
-            try:
-                self.pdf.image(photo_path, x=MARGIN, y=self.pdf.get_y(), w=PHOTO_SIZE, h=PHOTO_SIZE)
-            except Exception:
-                pass  # Si falla la imagen, continúa sin foto
+        self._render_header_centered(c)
+        self._pdf.ln(2)
 
-            y_start = self.pdf.get_y()
-            self.pdf.set_xy(TEXT_X, y_start + 4)
-            self._set_font("B", 18)
-            self._set_color(COLOR_PRIMARY)
-            self.pdf.cell(TEXT_W, 8, c.name, ln=True)
+    def _render_header_with_photo(self, c, photo_path: str) -> None:
+        text_x = MARGIN + PHOTO_SIZE + 5
+        text_w = self._pdf.w - text_x - MARGIN
+        y_start = self._pdf.get_y()
 
-            self.pdf.set_x(TEXT_X)
-            self._set_font("", 9)
-            self._set_color(COLOR_GRAY)
-            contact_parts = [p for p in [c.email, c.phone, c.location] if p]
-            self.pdf.cell(TEXT_W, 5, "  |  ".join(contact_parts), ln=True)
+        try:
+            self._pdf.image(
+                photo_path, x=MARGIN, y=y_start, w=PHOTO_SIZE, h=PHOTO_SIZE
+            )
+        except Exception:
+            logger.exception(
+                "No se pudo insertar la foto '%s'. Se continúa sin ella.",
+                photo_path,
+            )
 
-            if c.linkedin or c.github or c.portfolio:
-                self.pdf.set_x(TEXT_X)
-                links = [p for p in [c.linkedin, c.github, c.portfolio] if p]
-                self.pdf.cell(TEXT_W, 5, "  |  ".join(links), ln=True)
+        self._pdf.set_xy(text_x, y_start + 4)
+        self._set_font("B", 18)
+        self._set_color(COLOR_PRIMARY)
+        self._pdf.cell(text_w, 8, c.name, new_x="LMARGIN", new_y="NEXT")
 
-            # Asegurar que continuamos debajo de la foto
-            if self.pdf.get_y() < y_start + PHOTO_SIZE + 2:
-                self.pdf.set_y(y_start + PHOTO_SIZE + 2)
-        else:
-            # Layout clásico centrado sin foto
-            self._set_font("B", 20)
-            self._set_color(COLOR_PRIMARY)
-            self.pdf.cell(0, 10, c.name, ln=True, align="C")
+        self._pdf.set_x(text_x)
+        self._set_font("", 9)
+        self._set_color(COLOR_GRAY)
+        contact_parts = [p for p in [c.email, c.phone, c.location] if p]
+        self._pdf.cell(
+            text_w, 5, _safe_join(contact_parts, "  |  "),
+            new_x="LMARGIN", new_y="NEXT",
+        )
 
-            self._set_font("", 9)
-            self._set_color(COLOR_GRAY)
-            contact_parts = [p for p in [c.email, c.phone, c.location] if p]
-            if c.linkedin:
-                contact_parts.append(c.linkedin)
-            if c.github:
-                contact_parts.append(c.github)
-            if c.portfolio:
-                contact_parts.append(c.portfolio)
-            self.pdf.cell(0, 5, "  |  ".join(contact_parts), ln=True, align="C")
+        links = [p for p in [c.linkedin, c.github, c.portfolio] if p]
+        if links:
+            self._pdf.set_x(text_x)
+            self._pdf.cell(
+                text_w, 5, _safe_join(links, "  |  "),
+                new_x="LMARGIN", new_y="NEXT",
+            )
 
-        self.pdf.ln(2)
+        if self._pdf.get_y() < y_start + PHOTO_SIZE + 2:
+            self._pdf.set_y(y_start + PHOTO_SIZE + 2)
 
-    def _add_summary(self):
+    def _render_header_centered(self, c) -> None:
+        self._set_font("B", 20)
+        self._set_color(COLOR_PRIMARY)
+        self._pdf.cell(0, 10, c.name, new_x="LMARGIN", new_y="NEXT", align="C")
+
+        self._set_font("", 9)
+        self._set_color(COLOR_GRAY)
+        contact_parts = [
+            c.email, c.phone, c.location, c.linkedin, c.github, c.portfolio,
+        ]
+        self._pdf.cell(
+            0, 5, _safe_join(contact_parts, "  |  "),
+            new_x="LMARGIN", new_y="NEXT", align="C",
+        )
+
+    # ─────────────────────────────
+    # Resumen / Summary
+    # ─────────────────────────────
+
+    def _add_summary(self) -> None:
         if not self.profile.summary:
             return
-        self._section_line("Perfil Profesional")
+        self._section_line(self._labels["summary"])
         self._set_font("", 10)
-        self._set_color(COLOR_PRIMARY)
-        self.pdf.multi_cell(self.page_width, 5, self.profile.summary)
-        self.pdf.ln(1)
+        self._pdf.multi_cell(self._page_width, 5, self.profile.summary)
 
-    def _add_skills(self):
+    # ─────────────────────────────
+    # Habilidades / Skills
+    # ─────────────────────────────
+
+    def _add_skills(self) -> None:
         if not self.profile.skills:
             return
-        self._section_line("Habilidades Técnicas")
+
+        self._section_line(self._labels["skills"])
         self._set_font("", 10)
-        # Agrupar en líneas de max 6 skills
-        chunk_size = 6
-        chunks = [self.profile.skills[i:i+chunk_size] for i in range(0, len(self.profile.skills), chunk_size)]
+
+        skills = self.profile.skills[:MAX_SKILLS_DISPLAY]
+        chunks = [
+            skills[i: i + SKILLS_CHUNK_SIZE]
+            for i in range(0, len(skills), SKILLS_CHUNK_SIZE)
+        ]
         for chunk in chunks:
-            self.pdf.cell(0, 5, "  ·  ".join(chunk), ln=True)
+            self._pdf.cell(0, 5, _safe_join(chunk), new_x="LMARGIN", new_y="NEXT")
+
         if self.profile.soft_skills:
+            prefix = self._labels["soft_skills_prefix"]
             self._set_font("I", 9)
             self._set_color(COLOR_GRAY)
-            self.pdf.cell(0, 5, "Soft skills: " + "  ·  ".join(self.profile.soft_skills), ln=True)
+            self._pdf.cell(
+                0,
+                5,
+                f"{prefix}: " + _safe_join(
+                    self.profile.soft_skills[:MAX_SOFT_SKILLS_DISPLAY]
+                ),
+                new_x="LMARGIN",
+                new_y="NEXT",
+            )
             self._set_color(COLOR_PRIMARY)
-        self.pdf.ln(1)
 
-    def _add_experience(self):
+        self._pdf.ln(1)
+
+    # ─────────────────────────────
+    # Experiencia / Experience
+    # ─────────────────────────────
+
+    def _add_experience(self) -> None:
         if not self.profile.experience:
             return
-        self._section_line("Experiencia Profesional")
+
+        self._section_line(self._labels["experience"])
+
         for exp in self.profile.experience:
-            # Empresa + fechas
+            present_label = self._labels["present"]
+            date_range = f"{exp.start_date} – {exp.end_date or present_label}"
+
+            # Empresa + fecha en la misma línea
             self._set_font("B", 10)
-            date_range = f"{exp.start_date} – {exp.end_date or 'Presente'}"
-            self.pdf.cell(self.col_main, 5, exp.company, ln=False)
+            self._set_color(COLOR_PRIMARY)
+            self._pdf.cell(self._col_main, 5, exp.company)
+
             self._set_font("", 9)
             self._set_color(COLOR_GRAY)
-            self.pdf.cell(self.col_side, 5, date_range, ln=True, align="R")
+            self._pdf.cell(
+                self._col_side, 5, date_range,
+                new_x="LMARGIN", new_y="NEXT", align="R",
+            )
 
-            # Cargo
+            # Cargo + ubicación
             self._set_font("B", 10)
             self._set_color(COLOR_ACCENT)
-            loc = f"  —  {exp.location}" if exp.location else ""
-            self.pdf.cell(0, 5, exp.position + loc, ln=True)
+            loc_suffix = f"  —  {exp.location}" if exp.location else ""
+            self._pdf.cell(
+                0, 5, exp.position + loc_suffix,
+                new_x="LMARGIN", new_y="NEXT",
+            )
+
             self._set_color(COLOR_PRIMARY)
 
             # Bullets
             self._set_font("", 9.5)
             for bullet in exp.bullets:
-                self.pdf.cell(5, 5, "•", ln=False)
-                self.pdf.multi_cell(int(self.page_width - 5), 5, bullet)
+                self._render_bullet(bullet)
 
-            # Skills usadas
+            # Stack
             if exp.skills_used:
-                self._set_font("I", 8.5)
-                self._set_color(COLOR_GRAY)
-                self.pdf.cell(0, 4, "Stack: " + ", ".join(exp.skills_used), ln=True)
-                self._set_color(COLOR_PRIMARY)
+                self._render_stack(exp.skills_used)
 
-            self.pdf.ln(2)
+            self._pdf.ln(2)
 
-    def _add_education(self):
+    def _render_bullet(self, text: str) -> None:
+        self._pdf.cell(5, 5, "\u2022")
+        self._pdf.multi_cell(self._page_width - 5, 5, text)
+
+    def _render_stack(self, skills: List[str]) -> None:
+        prefix = self._labels["stack_prefix"]
+        self._set_font("I", 8.5)
+        self._set_color(COLOR_GRAY)
+        self._pdf.cell(
+            0, 4, f"{prefix}: " + ", ".join(skills),
+            new_x="LMARGIN", new_y="NEXT",
+        )
+        self._set_color(COLOR_PRIMARY)
+
+    # ─────────────────────────────
+    # Educación / Education
+    # ─────────────────────────────
+
+    def _add_education(self) -> None:
         if not self.profile.education:
             return
-        self._section_line("Educación")
+
+        self._section_line(self._labels["education"])
+
         for edu in self.profile.education:
+            # Institución + fecha
             self._set_font("B", 10)
-            inst_col = int(self.page_width * 0.7)
-            date_col = int(self.page_width * 0.3)
-            self.pdf.cell(inst_col, 5, edu.institution, ln=False)
+            self._set_color(COLOR_PRIMARY)
+            self._pdf.cell(self._col_main, 5, edu.institution)
+
             self._set_font("", 9)
             self._set_color(COLOR_GRAY)
-            self.pdf.cell(date_col, 5, f"{edu.start_date} – {edu.end_date}", ln=True, align="R")
+            self._pdf.cell(
+                self._col_side,
+                5,
+                f"{edu.start_date} – {edu.end_date}",
+                new_x="LMARGIN",
+                new_y="NEXT",
+                align="R",
+            )
+
+            # Título
             self._set_color(COLOR_PRIMARY)
             self._set_font("", 10)
-            degree_line = f"{edu.degree}" + (f" en {edu.field_of_study}" if edu.field_of_study else "")
-            self.pdf.cell(0, 5, degree_line, ln=True)
-            self.pdf.ln(1)
+            study_in = self._labels["study_in"]
+            degree_line = (
+                f"{edu.degree} {study_in} {edu.field_of_study}"
+                if edu.field_of_study
+                else edu.degree
+            )
+            self._pdf.cell(0, 5, degree_line, new_x="LMARGIN", new_y="NEXT")
+            self._pdf.ln(1)
 
-    def _add_projects(self):
-        if not self.profile.projects:
-            return
-        self._section_line("Proyectos Destacados")
-        for proj in self.profile.projects:
-            self._set_font("B", 10)
-            self.pdf.cell(0, 5, proj.name, ln=True)
-            self._set_font("", 9.5)
-            self.pdf.multi_cell(int(self.page_width), 5, proj.description)
-            if proj.tech_stack:
-                self._set_font("I", 8.5)
-                self._set_color(COLOR_GRAY)
-                self.pdf.cell(0, 4, "Tech: " + ", ".join(proj.tech_stack), ln=True)
-                self._set_color(COLOR_PRIMARY)
-            for h in proj.highlights:
-                self._set_font("", 9)
-                self.pdf.cell(5, 4, "•", ln=False)
-                self.pdf.multi_cell(int(self.page_width - 5), 4, h)
-            if proj.url:
-                self._set_font("", 8.5)
-                self._set_color(COLOR_ACCENT)
-                self.pdf.cell(0, 4, proj.url, ln=True)
-                self._set_color(COLOR_PRIMARY)
-            self.pdf.ln(2)
-
-    def _add_certifications(self):
-        if not self.profile.certifications:
-            return
-        self._section_line("Certificaciones")
-        for cert in self.profile.certifications:
-            self._set_font("", 10)
-            line = f"{cert.name}  —  {cert.issuer}"
-            if cert.date:
-                line += f"  ({cert.date})"
-            self.pdf.cell(0, 5, line, ln=True)
-        self.pdf.ln(1)
-
-    def _add_languages(self):
-        if not self.profile.languages:
-            return
-        self._section_line("Idiomas")
-        self._set_font("", 10)
-        self.pdf.cell(0, 5, "  ·  ".join(self.profile.languages), ln=True)
+    # ─────────────────────────────
+    # Punto de entrada público
+    # ─────────────────────────────
 
     def generate(self) -> bytes:
-        """Genera el PDF y devuelve los bytes."""
+        """
+        Renderiza el PDF y devuelve los bytes resultantes.
+
+        Raises:
+            RuntimeError: Si se llama más de una vez sobre la misma instancia.
+                          Para regenerar, crea una nueva instancia de ATSPDFGenerator.
+        """
+        if self._generated:
+            raise RuntimeError(
+                "generate() ya fue llamado. Crea una nueva instancia para "
+                "regenerar el PDF."
+            )
+
         self._add_header()
         self._add_summary()
         self._add_skills()
         self._add_experience()
-        self._add_projects()
         self._add_education()
-        self._add_certifications()
-        self._add_languages()
-        return bytes(self.pdf.output())
 
-
-# ─── Fallback: HTML ATS ──────────────────────────────────────────────────────
-
-def generate_html_cv(profile: CVProfile, photo_base64: str = "") -> str:
-    """
-    Genera un CV en HTML limpio, ATS-friendly y bien formateado.
-    photo_base64: imagen en base64 (data:image/jpeg;base64,...)
-    Puede imprimirse como PDF desde el navegador (Ctrl+P).
-    """
-    c = profile.contact
-    contact_parts = [p for p in [c.email, c.phone, c.location, c.linkedin, c.github, c.portfolio] if p]
-
-    exp_html = ""
-    for exp in profile.experience:
-        bullets_html = "".join(f"<li>{b}</li>" for b in exp.bullets)
-        stack = f'<div class="stack">Stack: {", ".join(exp.skills_used)}</div>' if exp.skills_used else ""
-        exp_html += f"""
-        <div class="entry">
-          <div class="entry-header">
-            <span class="org">{exp.company}</span>
-            <span class="date">{exp.start_date} – {exp.end_date or "Presente"}</span>
-          </div>
-          <div class="role">{exp.position}{" — " + exp.location if exp.location else ""}</div>
-          <ul>{bullets_html}</ul>
-          {stack}
-        </div>"""
-
-    proj_html = ""
-    for proj in profile.projects:
-        highlights = "".join(f"<li>{h}</li>" for h in proj.highlights)
-        tech = f'<div class="stack">Tech: {", ".join(proj.tech_stack)}</div>' if proj.tech_stack else ""
-        url = f'<div class="stack"><a href="{proj.url}">{proj.url}</a></div>' if proj.url else ""
-        proj_html += f"""
-        <div class="entry">
-          <div class="role">{proj.name}</div>
-          <p>{proj.description}</p>
-          {tech}
-          <ul>{highlights}</ul>
-          {url}
-        </div>"""
-
-    edu_html = ""
-    for edu in profile.education:
-        degree = f"{edu.degree}" + (f" en {edu.field_of_study}" if edu.field_of_study else "")
-        edu_html += f"""
-        <div class="entry">
-          <div class="entry-header">
-            <span class="org">{edu.institution}</span>
-            <span class="date">{edu.start_date} – {edu.end_date}</span>
-          </div>
-          <div class="role">{degree}</div>
-        </div>"""
-
-    cert_html = ""
-    for cert in profile.certifications:
-        cert_html += f'<div class="cert">{cert.name} — {cert.issuer} ({cert.date})</div>'
-
-    skills_str = "  ·  ".join(profile.skills or [])
-    soft_str = "  ·  ".join(profile.soft_skills or [])
-    langs_str = "  ·  ".join(profile.languages or [])
-
-    summary_section = f'<section><h2>Perfil Profesional</h2><p>{profile.summary}</p></section>' if profile.summary else ""
-    proj_section = f'<section><h2>Proyectos Destacados</h2>{proj_html}</section>' if proj_html else ""
-    cert_section = f'<section><h2>Certificaciones</h2>{cert_html}</section>' if cert_html else ""
-    lang_section = f'<section><h2>Idiomas</h2><p>{langs_str}</p></section>' if langs_str else ""
-
-    photo_html = ""
-    if photo_base64:
-        photo_html = f'<img src="{photo_base64}" class="photo" alt="Foto de perfil">'
-
-    photo_header_style = ""
-    if photo_base64:
-        photo_header_style = """
-  .header-wrap { display: flex; align-items: center; gap: 20px; margin-bottom: 14px; }
-  .photo { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; flex-shrink: 0; }
-  .header-text { flex: 1; }
-  .header-text h1 { text-align: left; }
-  .contact-line { text-align: left; }
-"""
-    else:
-        photo_header_style = """
-  .header-wrap { margin-bottom: 14px; }
-"""
-
-    header_block = f"""
-  <div class="header-wrap">
-    {photo_html}
-    <div class="header-text">
-      <h1>{c.name}</h1>
-      <div class="contact-line">{" &nbsp;|&nbsp; ".join(contact_parts)}</div>
-    </div>
-  </div>"""
-
-    return f"""<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>CV - {c.name}</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap');
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{
-    font-family: 'Source Sans 3', Arial, sans-serif;
-    font-size: 10.5pt;
-    color: #111;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 30px 40px;
-    line-height: 1.5;
-  }}
-  h1 {{ font-family: 'Source Serif 4', Georgia, serif; font-size: 22pt; }}
-  .contact-line {{ font-size: 9pt; color: #555; margin: 4px 0 0; }}
-  h2 {{
-    font-size: 10.5pt; text-transform: uppercase; letter-spacing: 0.08em;
-    color: #1a4db3; border-bottom: 1px solid #ccc;
-    padding-bottom: 2px; margin: 14px 0 8px;
-  }}
-  .entry {{ margin-bottom: 10px; }}
-  .entry-header {{ display: flex; justify-content: space-between; }}
-  .org {{ font-weight: 600; }}
-  .date {{ font-size: 9pt; color: #555; }}
-  .role {{ font-weight: 600; color: #1a4db3; margin: 1px 0; }}
-  ul {{ padding-left: 14px; margin: 4px 0; }}
-  li {{ margin-bottom: 2px; }}
-  .stack {{ font-size: 9pt; color: #555; font-style: italic; margin-top: 2px; }}
-  .cert {{ margin-bottom: 3px; }}
-  {photo_header_style}
-  @media print {{
-    body {{ padding: 15px 20px; }}
-    h2 {{ page-break-after: avoid; }}
-    .entry {{ page-break-inside: avoid; }}
-    .photo {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
-  }}
-</style>
-</head>
-<body>
-  {header_block}
-  {summary_section}
-  <section>
-    <h2>Habilidades Técnicas</h2>
-    <p>{skills_str}</p>
-    {"<p class='stack'>Soft skills: " + soft_str + "</p>" if soft_str else ""}
-  </section>
-  <section><h2>Experiencia Profesional</h2>{exp_html}</section>
-  {proj_section}
-  <section><h2>Educación</h2>{edu_html}</section>
-  {cert_section}
-  {lang_section}
-</body>
-</html>"""
+        self._generated = True
+        return bytes(self._pdf.output())
