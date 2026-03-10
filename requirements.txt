@@ -1,2 +1,6 @@
-fpdf2
 fastapi
+uvicorn[standard]
+fpdf2
+python-multipart
+jinja2
+requests
