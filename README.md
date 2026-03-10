@@ -83,34 +83,34 @@ curl -X POST http://localhost:8000/generate-cv \
 
 ```
 cv_optimizer/
-├── infrastructure/
-│   ├── exporters/
-│   │    ├──__init__.py
-│   │    └── pdf_generator.py
-│   └── nlp/
-│       ├──__init__.py
-│       └── skills_detector.py 
-├── models/
-│   ├──__init__.py
-│   └── cv_model.py         
-├── routers/
-│   ├── __init__.py
-│   └── cv_router.py           
-├── schemas/
-│   ├── __init__.py
-│   └── cv_schema.py          
-├── services/
-│   ├── __init__.py
-│   ├── pdf_generator.py
-│   └── skills_detector.py               
-├── tests/
-│   └── __init__.py
+├── app
+│   ├── infrastructure/
+│   │   ├── exporters/
+│   │   │    ├──__init__.py
+│   │   │    ├── html_generator.py
+│   │   │    └── pdf_generator.py
+│   │   └── nlp/
+│   │       ├──__init__.py
+│   │       └── skills_detector.py 
+│   ├── domain/
+│   │   ├──__init__.py
+│   │   └── cv_model.py         
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   └── cv_router.py           
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   └── cv_schema.py          
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── cv_service.py                          
+│   ├── dependencies.py  
+│   ├── main.py     
 ├── web/
-│   └── index.html                 
-├── cli.py                  # CLI standalone con colores
-├── database.py 
-├── dependencies.py  
-├── main.py                         
+│   └── index.html  
+├── cli/
+│   ├── __init__.py
+│   └── cli.py                   
 └── README.md
 ```
 
