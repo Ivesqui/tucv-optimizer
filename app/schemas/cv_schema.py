@@ -1,6 +1,6 @@
 from typing import Optional, List
 from pydantic import BaseModel
-
+from typing import Dict, Any
 
 class AnalyzeOfferRequest(BaseModel):
     offer_text: str
@@ -8,7 +8,7 @@ class AnalyzeOfferRequest(BaseModel):
 
 
 class GenerateCVRequest(BaseModel):
-    cv_json: dict
+    cv_json: Dict[str, Any]
     offer_text: Optional[str] = None
     optimize: bool = True
     format: str = "html"
