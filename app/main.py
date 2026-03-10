@@ -1,26 +1,18 @@
 """
-api/main.py — FastAPI Backend
-CV Optimizer API: análisis de ofertas, scoring ATS, generación de PDF
-
-Instalar: pip install fastapi uvicorn fpdf2 python-multipart
-Ejecutar:  uvicorn api.main:app --reload --port 8000
+app/main.py
+CV Optimizer API
+uvicorn app.main:app --reload
 """
 
-from app.routers import cv_router
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-# Permite importar desde la raíz del proyecto
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
-try:
-    from fastapi import FastAPI, HTTPException, Request
-
-    from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.staticfiles import StaticFiles
-
-except ImportError:
-    raise ImportError("Instala FastAPI: pip install fastapi uvicorn python-multipart")
-
-
-# App
+from app.routers.cv_router import router as cv_router
 
 app = FastAPI(
     title="CV Optimizer API",
@@ -28,15 +20,34 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS (para frontend web)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Routers
+
+app.include_router(cv_router, prefix="/api")
+
+# Global error handler
 
 
-app.include_router(cv_router.router)
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error"},
+    )
 
 
+app.mount("/web", StaticFiles(directory="web"), name="web")
+
+
+@app.get("/")
+def home():
+    return FileResponse("web/index.html")
