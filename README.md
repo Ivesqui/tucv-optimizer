@@ -83,16 +83,34 @@ curl -X POST http://localhost:8000/generate-cv \
 
 ```
 cv_optimizer/
-├── api/
-│   └── main.py          # FastAPI: endpoints REST
-├── core/
-│   ├── skills_detector.py  # NLP: detección de skills y scoring ATS
-│   ├── cv_model.py         # Modelo de datos + optimizador automático
-│   └── pdf_generator.py    # Generador PDF ATS-friendly + HTML fallback
-├── ui/
-│   └── index.html          # Interfaz web (sin frameworks, vanilla JS)
+├── infrastructure/
+│   ├── exporters/
+│   │    ├──__init__.py
+│   │    └── pdf_generator.py
+│   └── nlp/
+│       ├──__init__.py
+│       └── skills_detector.py 
+├── models/
+│   ├──__init__.py
+│   └── cv_model.py         
+├── routers/
+│   ├── __init__.py
+│   └── cv_router.py           
+├── schemas/
+│   ├── __init__.py
+│   └── cv_schema.py          
+├── services/
+│   ├── __init__.py
+│   ├── pdf_generator.py
+│   └── skills_detector.py               
+├── tests/
+│   └── __init__.py
+├── web/
+│   └── index.html                 
 ├── cli.py                  # CLI standalone con colores
-├── example_cv.json         # CV de ejemplo para probar
+├── database.py 
+├── dependencies.py  
+├── main.py                         
 └── README.md
 ```
 
