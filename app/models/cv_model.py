@@ -5,9 +5,10 @@ Modelo de datos del CV + lógica de optimización automática.
 
 from dataclasses import dataclass, field as dc_field, asdict
 field = dc_field  # alias para no romper el código existente
-from typing import List, Optional
+from typing import List, Tuple
 import json
 import re
+
 
 
 @dataclass
@@ -135,7 +136,11 @@ WEAK_VERBS = [
 ]
 
 
-def optimize_cv(profile: CVProfile, missing_tech: List[str], missing_soft: List[str]) -> CVProfile:
+def optimize_cv(
+        profile: CVProfile,
+        missing_tech: List[str],
+        missing_soft: List[str]) \
+        -> Tuple[CVProfile, List[str], List[str]]:
     """
     Optimiza el CV automáticamente:
     1. Agrega skills faltantes si el usuario las tiene

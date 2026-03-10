@@ -5,7 +5,7 @@ usando diccionarios curados + regex. Sin IA externa.
 """
 
 import re
-from collections import Counter
+
 
 # ─── Diccionarios de skills por categoría ────────────────────────────────────
 

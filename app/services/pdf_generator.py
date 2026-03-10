@@ -7,8 +7,6 @@ Ejecutar: pip install fpdf2
 """
 
 import os
-from pathlib import Path
-from typing import Optional
 
 try:
     from fpdf import FPDF
@@ -16,7 +14,7 @@ try:
 except ImportError:
     FPDF_AVAILABLE = False
 
-from core.cv_model import CVProfile
+from app.models.cv_model import CVProfile
 
 
 # ─── Constantes de diseño ATS ────────────────────────────────────────────────
@@ -46,7 +44,9 @@ class ATSPDFGenerator:
         self.pdf.set_margins(MARGIN, MARGIN, MARGIN)
         self.pdf.set_auto_page_break(auto=True, margin=MARGIN)
         self.pdf.add_page()
-        self.page_width = self.pdf.w - 2 * MARGIN
+        self.page_width = int(self.pdf.w - 2 * MARGIN)
+        self.col_main = int(self.page_width * 0.7)
+        self.col_side = int(self.page_width * 0.3)
 
     def _set_font(self, style="", size=10):
         self.pdf.set_font(FONT_NAME, style=style, size=size)
@@ -73,7 +73,7 @@ class ATSPDFGenerator:
             # Layout con foto: foto a la izquierda, datos a la derecha
             PHOTO_SIZE = 28  # mm
             TEXT_X = MARGIN + PHOTO_SIZE + 5
-            TEXT_W = self.pdf.w - TEXT_X - MARGIN
+            TEXT_W = int(self.pdf.w - TEXT_X - MARGIN)
 
             # Foto circular (fpdf2 no tiene clip oval nativo, usamos imagen cuadrada)
             try:
@@ -154,10 +154,10 @@ class ATSPDFGenerator:
             # Empresa + fechas
             self._set_font("B", 10)
             date_range = f"{exp.start_date} – {exp.end_date or 'Presente'}"
-            self.pdf.cell(self.page_width * 0.7, 5, exp.company, ln=False)
+            self.pdf.cell(self.col_main, 5, exp.company, ln=False)
             self._set_font("", 9)
             self._set_color(COLOR_GRAY)
-            self.pdf.cell(self.page_width * 0.3, 5, date_range, ln=True, align="R")
+            self.pdf.cell(self.col_side, 5, date_range, ln=True, align="R")
 
             # Cargo
             self._set_font("B", 10)
@@ -170,7 +170,7 @@ class ATSPDFGenerator:
             self._set_font("", 9.5)
             for bullet in exp.bullets:
                 self.pdf.cell(5, 5, "•", ln=False)
-                self.pdf.multi_cell(self.page_width - 5, 5, bullet)
+                self.pdf.multi_cell(int(self.page_width - 5), 5, bullet)
 
             # Skills usadas
             if exp.skills_used:
@@ -187,10 +187,12 @@ class ATSPDFGenerator:
         self._section_line("Educación")
         for edu in self.profile.education:
             self._set_font("B", 10)
-            self.pdf.cell(self.page_width * 0.7, 5, edu.institution, ln=False)
+            inst_col = int(self.page_width * 0.7)
+            date_col = int(self.page_width * 0.3)
+            self.pdf.cell(inst_col, 5, edu.institution, ln=False)
             self._set_font("", 9)
             self._set_color(COLOR_GRAY)
-            self.pdf.cell(self.page_width * 0.3, 5, f"{edu.start_date} – {edu.end_date}", ln=True, align="R")
+            self.pdf.cell(date_col, 5, f"{edu.start_date} – {edu.end_date}", ln=True, align="R")
             self._set_color(COLOR_PRIMARY)
             self._set_font("", 10)
             degree_line = f"{edu.degree}" + (f" en {edu.field_of_study}" if edu.field_of_study else "")
@@ -205,7 +207,7 @@ class ATSPDFGenerator:
             self._set_font("B", 10)
             self.pdf.cell(0, 5, proj.name, ln=True)
             self._set_font("", 9.5)
-            self.pdf.multi_cell(self.page_width, 5, proj.description)
+            self.pdf.multi_cell(int(self.page_width), 5, proj.description)
             if proj.tech_stack:
                 self._set_font("I", 8.5)
                 self._set_color(COLOR_GRAY)
@@ -214,7 +216,7 @@ class ATSPDFGenerator:
             for h in proj.highlights:
                 self._set_font("", 9)
                 self.pdf.cell(5, 4, "•", ln=False)
-                self.pdf.multi_cell(self.page_width - 5, 4, h)
+                self.pdf.multi_cell(int(self.page_width - 5), 4, h)
             if proj.url:
                 self._set_font("", 8.5)
                 self._set_color(COLOR_ACCENT)
@@ -241,8 +243,8 @@ class ATSPDFGenerator:
         self._set_font("", 10)
         self.pdf.cell(0, 5, "  ·  ".join(self.profile.languages), ln=True)
 
-    def generate(self, output_path: str) -> str:
-        """Genera el PDF y lo guarda en output_path. Retorna la ruta."""
+    def generate(self) -> bytes:
+        """Genera el PDF y devuelve los bytes."""
         self._add_header()
         self._add_summary()
         self._add_skills()
@@ -251,9 +253,7 @@ class ATSPDFGenerator:
         self._add_education()
         self._add_certifications()
         self._add_languages()
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        self.pdf.output(output_path)
-        return output_path
+        return bytes(self.pdf.output())
 
 
 # ─── Fallback: HTML ATS ──────────────────────────────────────────────────────
@@ -312,9 +312,9 @@ def generate_html_cv(profile: CVProfile, photo_base64: str = "") -> str:
     for cert in profile.certifications:
         cert_html += f'<div class="cert">{cert.name} — {cert.issuer} ({cert.date})</div>'
 
-    skills_str = "  ·  ".join(profile.skills)
-    soft_str = "  ·  ".join(profile.soft_skills)
-    langs_str = "  ·  ".join(profile.languages)
+    skills_str = "  ·  ".join(profile.skills or [])
+    soft_str = "  ·  ".join(profile.soft_skills or [])
+    langs_str = "  ·  ".join(profile.languages or [])
 
     summary_section = f'<section><h2>Perfil Profesional</h2><p>{profile.summary}</p></section>' if profile.summary else ""
     proj_section = f'<section><h2>Proyectos Destacados</h2>{proj_html}</section>' if proj_html else ""

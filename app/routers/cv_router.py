@@ -1,75 +1,32 @@
-"""
-api/main.py — FastAPI Backend
-CV Optimizer API: análisis de ofertas, scoring ATS, generación de PDF
-
-Instalar: pip install fastapi uvicorn fpdf2 python-multipart
-Ejecutar:  uvicorn api.main:app --reload --port 8000
-"""
-
-import json
-import os
-import sys
-import tempfile
 from pathlib import Path
-from typing import Optional
 
-# Permite importar desde la raíz del proyecto
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
-try:
-    from fastapi import FastAPI, HTTPException, Request
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-    from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.staticfiles import StaticFiles
-    from pydantic import BaseModel
-except ImportError:
-    raise ImportError("Instala FastAPI: pip install fastapi uvicorn python-multipart")
-
-from skills_detector import detect_skills, compare_cv_vs_offer
-from cv_model import CVProfile, optimize_cv, analyze_bullet_quality
-from pdf_generator import ATSPDFGenerator, generate_html_cv, FPDF_AVAILABLE
-
-# ─── App ─────────────────────────────────────────────────────────────────────
-
-app = FastAPI(
-    title="CV Optimizer API",
-    description="Analiza ofertas, calcula ATS score y genera CVs optimizados",
-    version="1.0.0",
+from app.schemas.cv_schema import (
+    AnalyzeOfferRequest,
+    GenerateCVRequest,
+    BulletQualityRequest
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from app.services.skills_detector import detect_skills, compare_cv_vs_offer
+from app.models.cv_model import CVProfile, optimize_cv, analyze_bullet_quality
+from app.services.pdf_generator import ATSPDFGenerator, generate_html_cv, FPDF_AVAILABLE
+
+router = APIRouter(prefix="/cv", tags=["CV"])
 
 OUTPUT_DIR = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-
-# ─── Schemas Pydantic ────────────────────────────────────────────────────────
-
-class AnalyzeOfferRequest(BaseModel):
-    offer_text: str
-    cv_json: Optional[dict] = None   # Si se pasa, calcula match
-
-
-class GenerateCVRequest(BaseModel):
-    cv_json: dict
-    offer_text: Optional[str] = None
-    optimize: bool = True
-    format: str = "html"             # "pdf" | "html" | "json"
-    photo_base64: Optional[str] = None   # data:image/jpeg;base64,...
-
-
-class BulletQualityRequest(BaseModel):
-    bullets: list[str]
-
+def _calculate_years(profile: CVProfile) -> str:
+    if not profile.experience:
+        return "0"
+    # Aproximación simple
+    return str(len(profile.experience) * 2) + "+"
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
-@app.get("/", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 async def root():
     """Sirve la UI."""
     ui_path = Path(__file__).parent.parent / "ui" / "index.html"
@@ -78,7 +35,7 @@ async def root():
     return HTMLResponse("<h1>CV Optimizer API ✅</h1><p>Ver /docs para la API.</p>")
 
 
-@app.post("/analyze-offer")
+@router.post("/analyze-offer")
 async def analyze_offer(req: AnalyzeOfferRequest):
     """
     Analiza una oferta laboral y extrae skills, seniority, experiencia requerida.
@@ -104,7 +61,7 @@ async def analyze_offer(req: AnalyzeOfferRequest):
     return JSONResponse(result)
 
 
-@app.post("/generate-cv")
+@router.post("/generate-cv")
 async def generate_cv(req: GenerateCVRequest):
     """
     Genera el CV en el formato solicitado (html, pdf, json).
@@ -190,7 +147,7 @@ async def generate_cv(req: GenerateCVRequest):
     raise HTTPException(400, "format debe ser: html | pdf | json")
 
 
-@app.post("/analyze-bullets")
+@router.post("/analyze-bullets")
 async def analyze_bullets(req: BulletQualityRequest):
     """Evalúa la calidad de los bullets del CV."""
     results = []
@@ -201,7 +158,7 @@ async def analyze_bullets(req: BulletQualityRequest):
     return {"results": results, "average_score": round(avg_score, 1)}
 
 
-@app.get("/export-json/{filename}")
+@router.get("/export-json/{filename}")
 async def export_json(filename: str):
     """Descarga el JSON del CV guardado."""
     path = OUTPUT_DIR / filename
@@ -210,7 +167,7 @@ async def export_json(filename: str):
     return FileResponse(str(path), media_type="application/json", filename=filename)
 
 
-@app.get("/linkedin-autofill")
+@router.get("/linkedin-autofill")
 async def linkedin_autofill_format(cv_json: str):
     """
     Retorna el CV en formato estructurado listo para autofill en formularios.
@@ -251,10 +208,3 @@ async def linkedin_autofill_format(cv_json: str):
         "summary": profile.summary,
         "experience_years": _calculate_years(profile),
     })
-
-
-def _calculate_years(profile: CVProfile) -> str:
-    if not profile.experience:
-        return "0"
-    # Aproximación simple
-    return str(len(profile.experience) * 2) + "+"

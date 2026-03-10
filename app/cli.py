@@ -13,15 +13,14 @@ Uso:
 import argparse
 import json
 import sys
-import os
 from pathlib import Path
 
 # Asegura imports desde la raíz
 sys.path.insert(0, str(Path(__file__).parent))
 
-from core.skills_detector import detect_skills, compare_cv_vs_offer
-from core.cv_model import CVProfile, optimize_cv, analyze_bullet_quality
-from core.pdf_generator import ATSPDFGenerator, generate_html_cv, FPDF_AVAILABLE
+from app.services.skills_detector import detect_skills, compare_cv_vs_offer
+from models.cv_model import CVProfile, optimize_cv, analyze_bullet_quality
+from app.services.pdf_generator import ATSPDFGenerator, generate_html_cv, FPDF_AVAILABLE
 
 # ─── Colores ANSI ─────────────────────────────────────────────────────────────
 G  = "\033[92m"   # verde
