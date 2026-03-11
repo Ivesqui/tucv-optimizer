@@ -1,265 +1,81 @@
-# TuCV Optimizer (CV Optimizer — ATS Pro)
+# 🚀 TuCV Optimizer (CV Optimizer — ATS Pro)
+
+**TuCV Optimizer** es un motor local-first diseñado para transformar CVs genéricos en herramientas de alto impacto para procesos de selección. Utiliza análisis de datos y reglas de reclutamiento (ATS) para optimizar la narrativa y el emparejamiento técnico sin depender de APIs externas costosas.
+
+> **Filosofía:** Privacidad total y cero costos recurrentes. Todo el poder del NLP mediante diccionarios curados, motores de reglas locales y una arquitectura limpia.
+
 ---
 
-## 🚀 Instalación rápida
+## ✨ Novedades de la Versión 2.0 (Marzo 2026)
+
+* **Refactorización Narrativa Inteligente:** Motor que detecta verbos débiles (*hice, encargué, trabajé*) y los reemplaza por verbos de acción (*lideré, optimicé, desarrollé*) con **detección de contexto** para mantener la gramática y capitalización correcta.
+* **Arquitectura Clean:** Reestructuración total siguiendo patrones de diseño (Domain, Infrastructure, Service, Router) para facilitar la escalabilidad.
+* **Motor PDF Profesional:** Generación de documentos ATS-friendly con alineación dinámica de bullets y sangría inteligente para los stacks tecnológicos.
+* **Slugify Seguro:** Generación de nombres de archivos sanitizados (ej: `cv_8a2b1f_christian_estupinan.pdf`) para compatibilidad universal.
+
+---
+
+## 🛠️ Instalación rápida
 
 ```bash
-# 1. Clonar / copiar el proyecto
-cd cv_optimizer
+# 1. Clonar el proyecto
+git clone [https://github.com/Ivesqui/tucv-optimizer.git](https://github.com/Ivesqui/tucv-optimizer.git)
+cd tucv-optimizer
 
-# 2. Instalar dependencias mínimas
-pip install fastapi uvicorn fpdf2 python-multipart
+# 2. Crear y activar entorno virtual
+python -m venv .venv
+# En Windows:
+.venv\Scripts\activate
+# En Linux/Mac:
+# source .venv/bin/activate
 
-# 3. (Opcional) Para análisis NLP avanzado
-pip install spacy scikit-learn
-python -m spacy download es_core_news_sm
+# 3. Instalar dependencias
+pip install fastapi uvicorn fpdf2 python-multipart requests
 ```
 
 ---
 
-## 🎯 Cómo usar
+## 🏗️ Arquitectura del Sistema
 
-### Opción A: Interfaz Web (recomendada)
+El proyecto implementa una separación de responsabilidades clara para permitir el crecimiento del motor de optimización:
 
-```bash
-# Iniciar el servidor
-uvicorn api.main:app --reload --port 8000
-
-# Abrir en el navegador
-open http://localhost:8000
-```
-
-### Opción B: CLI (sin servidor)
-
-```bash
-# Analizar CV vs oferta
-python cli.py analyze --cv example_cv.json --offer "Buscamos Python dev con Docker y AWS, 3+ años"
-
-# Generar CV en HTML (ATS-friendly, abre en navegador y Ctrl+P → PDF)
-python cli.py generate --cv example_cv.json --format html
-
-# Generar PDF directo (requiere fpdf2)
-python cli.py generate --cv example_cv.json --format pdf
-
-# Generar con optimización para oferta específica
-python cli.py generate --cv example_cv.json --format html --offer "texto de la oferta"
-
-# Evaluar calidad de bullets
-python cli.py bullets --cv example_cv.json
-
-# Exportar JSON para autofill
-python cli.py generate --cv example_cv.json --format autofill
-```
-
-### Opción C: API REST directa
-
-```bash
-# Analizar oferta + calcular score ATS
-curl -X POST http://localhost:8000/analyze-offer \
-  -H "Content-Type: application/json" \
-  -d '{
-    "offer_text": "Buscamos Senior Python dev con FastAPI, PostgreSQL, Docker y AWS. 4+ años.",
-    "cv_json": { ...tu CV aquí... }
-  }'
-
-# Generar CV en HTML
-curl -X POST http://localhost:8000/generate-cv \
-  -H "Content-Type: application/json" \
-  -d '{"cv_json": {...}, "format": "html", "optimize": true, "offer_text": "..."}'
-
-# Generar PDF
-curl -X POST http://localhost:8000/generate-cv \
-  -H "Content-Type: application/json" \
-  -d '{"cv_json": {...}, "format": "pdf"}' \
-  --output mi_cv.pdf
-```
+```text
+app/
+├── core/knowledge/     # Diccionarios JSON de verbos fuertes, débiles y skills.
+├── domain/             # Lógica de negocio pura (CVProfile, optimize_cv).
+├── infrastructure/     # Implementaciones técnicas (PDF Generator, Skill Detector).
+├── services/           # Orquestador de lógica (CVService).
+├── routers/            # Definición de endpoints FastAPI (/api/cv/...).
+└── schemas/            # Validaciones Pydantic para la integridad de datos.
 
 ---
 
-## 🏗️ Arquitectura
+## 📊 Sistema de Scoring ATS
 
-```
-cv_optimizer/
-├── app
-│   ├── infrastructure/
-│   │   ├── exporters/
-│   │   │    ├──__init__.py
-│   │   │    ├── html_generator.py
-│   │   │    └── pdf_generator.py
-│   │   └── nlp/
-│   │       ├──__init__.py
-│   │       └── skills_detector.py 
-│   ├── domain/
-│   │   ├──__init__.py
-│   │   └── cv_model.py         
-│   ├── routers/
-│   │   ├── __init__.py
-│   │   └── cv_router.py           
-│   ├── schemas/
-│   │   ├── __init__.py
-│   │   └── cv_schema.py          
-│   ├── services/
-│   │   ├── __init__.py
-│   │   └── cv_service.py                          
-│   ├── dependencies.py  
-│   ├── main.py     
-├── web/
-│   ├── index.html
-│   └── js/
-│       └── analysis.js  
-├── cli/
-│   ├── __init__.py
-│   └── cli.py
-├── fonts/
-├── output/                   
-└── README.md
-```
-
-### Flujo de datos
-
-```
-Oferta laboral (texto)
-        ↓
-skills_detector.detect_skills()
-        ↓
-Comparador CV vs oferta
-        ↓
-ATS Score (0-100) + Grado (A-F)
-        ↓
-optimize_cv() — promueve skills detectadas
-        ↓
-ATSPDFGenerator / generate_html_cv()
-        ↓
-PDF / HTML / JSON descargable
-```
+| Componente | Peso | Lógica |
+|------------|------|--------|
+| **Hard Skills** | 70% | Match directo de tecnologías requeridas vs. detectadas en el texto. |
+| **Soft Skills** | 30% | Presencia de competencias blandas clave en la narrativa profesional. |
 
 ---
 
-## 📊 Cómo funciona el ATS Score
-
-| Componente | Peso | Cómo se calcula |
-|------------|------|-----------------|
-| Skills técnicas | 70% | `matching_tech / offer_tech × 70` |
-| Soft skills | 30% | `matching_soft / offer_soft × 30` |
-
-| Score | Grado | Interpretación |
-|-------|-------|----------------|
-| 80–100 | A | Excelente match |
-| 65–79 | B | Buen match |
-| 50–64 | C | Match moderado |
-| 35–49 | D | Match bajo |
-| 0–34 | F | Personalizar CV |
-
----
-
-## 🔌 Integración con formularios (Autofill)
-
-El endpoint `/linkedin-autofill` retorna los campos del CV mapeados a los formularios más comunes:
-
-```json
-{
-  "personal": {
-    "first_name": "Ana",
-    "last_name": "García López",
-    "email": "ana@email.com",
-    "phone": "+57 300 123 4567",
-    "location": "Bogotá, Colombia",
-    "linkedin_url": "linkedin.com/in/anagarcia"
-  },
-  "current_role": {
-    "title": "Senior Software Engineer",
-    "company": "Bancolombia"
-  },
-  "education": {
-    "school": "Universidad de los Andes",
-    "degree": "Ingeniería de Sistemas"
-  },
-  "skills_text": "Python, React, PostgreSQL, Docker, AWS...",
-  "summary": "..."
-}
-```
-
-Puedes usar este JSON con extensiones de Chrome como **Autofill** o **Form Filler** para llenar formularios automáticamente.
-
----
-
-## 📁 Formato del CV (JSON)
+## 📁 Formato de Datos (JSON)
 
 ```json
 {
   "contact": {
-    "name": "Tu Nombre",
+    "name": "Christian Estupiñán",
     "email": "tu@email.com",
-    "phone": "+57 300 000 0000",
-    "location": "Ciudad, País",
-    "linkedin": "linkedin.com/in/tunombre",
-    "github": "github.com/tunombre"
+    "location": "Ecuador"
   },
-  "summary": "Resumen profesional de 2-4 oraciones...",
-  "skills": ["Python", "React", "Docker", "AWS"],
-  "soft_skills": ["Liderazgo", "Trabajo en equipo"],
-  "languages": ["Español (Nativo)", "Inglés (B2)"],
+  "summary": "Resumen profesional de alto impacto...",
+  "skills": ["Python", "FastAPI", "PostgreSQL"],
   "experience": [
     {
-      "company": "Empresa",
-      "position": "Cargo",
-      "start_date": "Ene 2022",
-      "end_date": "Presente",
-      "location": "Ciudad",
-      "bullets": [
-        "Logro cuantificado con verbo de acción y métricas",
-        "Implementé X que resultó en Y% de mejora"
-      ],
-      "skills_used": ["Python", "PostgreSQL"]
-    }
-  ],
-  "education": [
-    {
-      "institution": "Universidad",
-      "degree": "Ingeniería en Sistemas",
-      "field": "Computación",
-      "start_date": "2015",
-      "end_date": "2020"
-    }
-  ],
-  "projects": [
-    {
-      "name": "Nombre del proyecto",
-      "description": "Descripción breve",
-      "tech_stack": ["React", "Node.js"],
-      "url": "github.com/user/repo",
-      "highlights": ["Logro 1", "Logro 2"]
-    }
-  ],
-  "certifications": [
-    {
-      "name": "AWS Solutions Architect",
-      "issuer": "Amazon",
-      "date": "2023"
+      "company": "Tech Ecuador",
+      "position": "Backend Developer",
+      "bullets": ["Lideré la migración de microservicios"],
+      "skills_used": ["Python", "Docker"]
     }
   ]
 }
-```
-
----
-
-## 🛠️ Extensiones futuras
-
-- [ ] Extensión Chrome para autofill automático en LinkedIn/HiringRoom
-- [ ] Soporte multiidioma (EN/ES/PT)
-- [ ] Parser de PDF para importar CVs existentes
-- [ ] Templates de CV adicionales
-- [ ] Modo batch: analizar múltiples ofertas a la vez
-- [ ] Historial de aplicaciones (SQLite local)
-
----
-
-## 📦 Dependencias
-
-| Librería | Uso | Instalación |
-|----------|-----|-------------|
-| `fastapi` | API REST | `pip install fastapi uvicorn` |
-| `fpdf2` | Generación PDF | `pip install fpdf2` |
-| `python-multipart` | Upload de archivos | `pip install python-multipart` |
-
-> **Sin spaCy, sin OpenAI, sin costos recurrentes.** Todo el análisis NLP se hace con diccionarios curados y regex.

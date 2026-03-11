@@ -8,6 +8,8 @@ from datetime import datetime
 import uuid
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+import unicodedata
+import re
 
 from app.schemas.cv_schema import (
     AnalyzeOfferRequest,
@@ -15,7 +17,11 @@ from app.schemas.cv_schema import (
     BulletQualityRequest,
 )
 
-from app.infrastructure.nlp.skills_detector import detect_skills, compare_cv_vs_offer
+from app.infrastructure.nlp.skills_detector import (
+    detect_skills,
+    compare_cv_vs_offer,
+    analyze_experience_quality,
+    AnalysisResponse)
 from app.domain.cv_model import CVProfile, optimize_cv, analyze_bullet_quality
 from app.infrastructure.exporters.pdf_generator import ATSPDFGenerator, FPDF_AVAILABLE
 from app.infrastructure.exporters.html_generator import generate_html_cv
@@ -32,14 +38,20 @@ class CVService:
     # Analyze Offer
     # ───────────────────────────────
     def analyze_offer(self, req: AnalyzeOfferRequest):
-
-        print("DEBUG REQUEST:", req)
-
+        """
+        Analiza la oferta y realiza el diagnóstico completo (ATS + Redacción).
+        """
         if not req.offer_text.strip():
             raise HTTPException(400, "offer_text no puede estar vacío")
 
+        # 1. Procesar Oferta
         offer_skills = detect_skills(req.offer_text)
-        result = {"offer_skills": offer_skills}
+
+        # Preparamos el contenedor con tipos explícitos para evitar el warning
+        result: dict[str, any] = {
+            "offer_skills": offer_skills,
+            "cv_analysis": None
+        }
 
         if req.cv_json:
             try:
@@ -47,15 +59,33 @@ class CVService:
             except Exception as e:
                 raise HTTPException(400, f"cv_json inválido: {e}")
 
+            # 2. Procesar CV
             cv_text = profile.to_plain_text()
             cv_skills = detect_skills(cv_text)
+
+            # 3. Cruzar datos (ATS Match)
             comparison = compare_cv_vs_offer(cv_skills, offer_skills)
 
-            result["cv_skills"] = cv_skills
-            result["comparison"] = comparison
+            # 4. Calidad de redacción (Nueva lógica de verbos)
+            writing_advice = analyze_experience_quality(cv_text)
 
-        return JSONResponse(result)
+            # 5. Construcción del Contrato de Respuesta
+            # Usamos dict() para asegurar que sea serializable sin problemas
+            analysis_payload: AnalysisResponse = {
+                "match_details": comparison,
+                "skills_detected": cv_skills,
+                "writing_advice": writing_advice,
+                "meta": {
+                    "engine_version": "2.0-universal",
+                    "industry_detected": next(iter(cv_skills.get("tech_skills", {}).keys()), "General")
+                }
+            }
 
+            result["cv_analysis"] = analysis_payload
+
+        # Retornamos el diccionario completo.
+        # FastAPI se encarga de convertirlo a JSON automáticamente.
+        return result
 
     def load_cv_from_file(self, filename: str) -> CVProfile | None:
         """
@@ -80,21 +110,21 @@ class CVService:
     # ───────────────────────────────
 
     def generate_cv(self, req: GenerateCVRequest):
-
         try:
             profile = CVProfile.from_dict(req.cv_json)
-
         except Exception as e:
             raise HTTPException(400, f"cv_json inválido: {e}")
 
         optimization_notes = {}
 
+        # 1. OPTIMIZACIÓN GLOBAL (Afecta a JSON, HTML y PDF por igual)
         if req.offer_text and req.optimize:
             offer_skills = detect_skills(req.offer_text)
             cv_text = profile.to_plain_text()
             cv_skills = detect_skills(cv_text)
             comparison = compare_cv_vs_offer(cv_skills, offer_skills)
 
+            # Aquí 'profile' se transforma (Verbos + Skills)
             profile, promoted, suggested_soft = optimize_cv(
                 profile,
                 comparison["missing_tech"],
@@ -106,7 +136,10 @@ class CVService:
                 "skills_promoted": promoted,
                 "soft_skills_suggested": suggested_soft,
                 "recommendations": comparison["recommendations"],
+                "narrative_improved": True  # Indicador de que se mejoraron verbos
             }
+
+        # 2. SELECCIÓN DE FORMATO
 
         # ─ JSON ─
         if req.format == "json":
@@ -114,28 +147,26 @@ class CVService:
 
         # ─ HTML ─
         if req.format == "html":
+            # Usa el profile ya optimizado
+            safe_name = self.slugify_safe(profile.contact.name)
+            filename = f"cv_{safe_name}.html"
             html_content = generate_html_cv(profile, photo_base64=req.photo_base64 or "")
-
-            # Creamos un buffer en memoria en lugar de un archivo en disco
             buffer = BytesIO(html_content.encode("utf-8"))
-            filename = f"cv_{profile.contact.name.replace(' ', '_')}.html"
 
-            return StreamingResponse(
-                buffer,
-                media_type="text/html",
-                headers={"Content-Disposition": f"attachment; filename={filename}"}
-            )
+            return StreamingResponse(buffer, media_type="text/html",
+                                     headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+        # ─ PDF ─
         if req.format == "pdf":
             if not FPDF_AVAILABLE:
-                raise HTTPException(500, "fpdf2 no instalado. Ejecuta: pip install fpdf2")
+                raise HTTPException(500, "fpdf2 no instalado")
 
-            # Generamos el ID aquí para que sea único en cada descarga
             request_id = str(uuid.uuid4())[:8]
+            safe_name = self.slugify_safe(profile.contact.name)[:15]  # Corto para que no sea un link gigante
+            filename = f"cv_{request_id}_{safe_name}.pdf"
 
-            # USAMOS request_id aquí:
-            filename = f"cv_{request_id}_{profile.contact.name.replace(' ', '_')[:15]}.pdf"
+            # Manejo de Foto (Temporal)
             photo_tmp = None
-
             if req.photo_base64:
                 try:
                     header, b64data = req.photo_base64.split(",", 1)
@@ -144,23 +175,16 @@ class CVService:
                     photo_tmp = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
                     photo_tmp.write(img_bytes)
                     photo_tmp.close()
-                    profile.photo_path = photo_tmp.name
+                    profile.photo_path = photo_tmp.name  # Inyectamos la ruta para el PDF
                 except Exception:
                     pass
 
             try:
-                print("DEBUG: entrando a generar PDF")
-                print("DEBUG: profile:", profile)
-
+                # IMPORTANTE: Aquí pasamos el 'profile' que ya pasó por optimize_cv
                 pdf_bytes = ATSPDFGenerator(profile).generate()
-
-                print("DEBUG: PDF generado OK, tamaño:", len(pdf_bytes))
-
                 buffer = BytesIO(pdf_bytes)
             except Exception as e:
-                print("🔥 ERROR GENERANDO PDF")
                 traceback.print_exc()
-
                 raise HTTPException(500, f"Error generando PDF: {e}")
             finally:
                 if photo_tmp:
@@ -176,7 +200,6 @@ class CVService:
             )
 
         raise HTTPException(400, "format debe ser: html | pdf | json")
-
     # ───────────────────────────────
     # Analyze Bullets
     # ───────────────────────────────
@@ -285,3 +308,10 @@ class CVService:
         if years == 0:
             return f"{months} meses"
         return f"{years}.{months // 1} años"
+
+    def slugify_safe(self, text: str) -> str: # Añadido 'self'
+        """ Transforma 'Christian Estupiñán' -> 'christian_estupinan' """
+        text = unicodedata.normalize('NFKD', text)
+        text = text.encode('ascii', 'ignore').decode('ascii')
+        text = re.sub(r'[^\w\s-]', '', text).strip().lower()
+        return re.sub(r'[-\s]+', '_', text)

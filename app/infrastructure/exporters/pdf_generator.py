@@ -391,22 +391,39 @@ class ATSPDFGenerator:
             self._set_font("", 9.5)
 
             for bullet in exp.bullets:
+                self._pdf.set_x(self._pdf.l_margin + 5)
                 self._render_bullet(bullet)
 
             if exp.skills_used:
+                # l_margin (margen base) + 5 (ancho del bullet) + un pequeño ajuste
+                # para que quede justo debajo de la primera letra del texto del bullet
+                self._pdf.set_x(self._pdf.l_margin + 10)
                 self._render_stack(exp.skills_used)
-
             self._pdf.ln(2)
 
     def _render_bullet(self, text: str):
+        self._set_font("", 9.5)
 
-        self._pdf.cell(5, 5, "-")
+        # 1. Dibujamos el punto (bullet)
+        # El ancho es 5 para que el texto empiece cerca, ln=0 para no saltar de línea
+        self._pdf.cell(5, 5, "•", border=0, ln=0)
 
+        # 2. Dibujamos el texto
+        # Usamos 0 para que ocupe todo el ancho disponible hasta el margen derecho
+        # new_x="LMARGIN" y new_y="NEXT" hacen que el cursor baje automáticamente
         self._pdf.multi_cell(
-            self._page_width - 5,
+            0,
             5,
-            _sanitize_text(text)
+            _sanitize_text(text),
+            new_x="LMARGIN",
+            new_y="NEXT"
         )
+
+        # 3. Un pequeño espacio extra antes del siguiente bullet
+        self._pdf.ln(1)
+
+        # Un pequeño respiro entre bullets
+        self._pdf.ln(1)
 
     def _render_stack(self, skills: List[str]):
 

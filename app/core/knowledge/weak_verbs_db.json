@@ -1,0 +1,12 @@
+{
+  "verbos_debiles": [
+    "hice", "hacer", "haciendo", "encargado de", "responsable de",
+    "ayudé", "ayudar", "asistí en", "puse", "poner", "vi", "ver",
+    "atendí", "atender", "traté con", "manejé", "estuve en",
+    "participé en", "colaboré con", "busqué", "intenté", "trataba de"
+  ],
+  "frases_pasivas": [
+    "mi trabajo era", "tenía que", "me tocaba", "se me asignó",
+    "formé parte de", "fui el que hizo", "estuve a cargo de"
+  ]
+}

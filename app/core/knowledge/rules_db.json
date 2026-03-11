@@ -1,0 +1,21 @@
+{
+  "experience_patterns": [
+    "(\\d+)\\+?\\s*años?\\s*de\\s*experiencia",
+    "(\\d+)\\+?\\s*years?\\s*of\\s*experience",
+    "experiencia\\s*de\\s*(\\d+)\\+?\\s*años?",
+    "(\\d+)\\+?\\s*yrs?\\s*experience",
+    "minimum\\s*(\\d+)\\s*years?",
+    "mínimo\\s*(\\d+)\\s*años?"
+  ],
+  "seniority_map": {
+    "junior": ["junior", "jr", "entry level", "trainee", "intern", "practicante"],
+    "mid": ["mid", "semi senior", "ssr", "intermediate", "associate"],
+    "senior": ["senior", "sr", "lead", "staff", "principal", "architect"],
+    "manager": ["manager", "head", "director", "vp", "chief", "cto"]
+  },
+  "education_keywords": [
+    "licenciatura", "ingeniería", "bachelor", "máster", "master", "mba",
+    "doctorado", "phd", "técnico", "tecnólogo", "certificación",
+    "bootcamp", "university", "universidad"
+  ]
+}

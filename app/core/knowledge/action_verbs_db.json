@@ -1,0 +1,7 @@
+{
+  "comercial": ["incrementé", "negocié", "fidelicé", "superé", "capté", "asesoré", "promoví", "vendí", "alcancé"],
+  "operativo": ["optimicé", "coordiné", "despaché", "organicé", "reduje", "controlé", "ejecuté", "instalé", "reparé"],
+  "administrativo": ["gestioné", "automaticé", "redacté", "planifiqué", "apoyé", "tramité", "registré", "organicé"],
+  "liderazgo": ["dirigí", "fomenté", "supervisé", "motivé", "delegué", "entrené", "coordiné", "capacité"],
+  "servicio": ["atendí", "resolví", "asistí", "orienté", "satisfice", "gestioné", "escuché"]
+}

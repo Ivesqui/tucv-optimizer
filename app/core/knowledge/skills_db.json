@@ -1,0 +1,12 @@
+{
+  "it_languages": ["python", "javascript", "typescript", "java", "c++", "c#", "go", "rust", "php", "ruby", "sql", "html", "css", "vb.net"],
+  "it_frameworks": ["react", "angular", "vue", "nextjs", "django", "flask", "fastapi", "springboot", "laravel", ".net", "astro"],
+  "it_cloud_devops": ["aws", "azure", "gcp", "docker", "kubernetes", "terraform", "jenkins", "github actions", "linux"],
+  "retail_y_ventas": ["atención al cliente", "cierre de ventas", "arqueo de caja", "merchandising", "venta sugestiva", "gestión de stock", "pos"],
+  "logistica_y_bodega": ["control de inventarios", "picking y packing", "recepción de mercadería", "bpa", "montacargas", "wms", "sap r3"],
+  "administrativo_y_banca": ["gestión documental", "facturación electrónica", "conciliación bancaria", "excel avanzado", "crm", "sri", "uaffe"],
+  "salud_y_asistencia": ["primeros auxilios", "triaje", "historia clínica", "manejo de pacientes", "toma de signos vitales"],
+  "gastronomia_y_turismo": ["manipulación de alimentos", "servicio de mesa", "barismo", "haccp", "atención al huésped", "costos"],
+  "tecnico_y_construccion": ["lectura de planos", "mantenimiento preventivo", "soldadura", "electricidad", "normas ohsas"]
+}
+
