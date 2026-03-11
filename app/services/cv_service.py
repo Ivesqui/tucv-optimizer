@@ -4,7 +4,8 @@ import base64
 import tempfile
 import os
 from io import BytesIO
-
+from datetime import datetime
+import uuid
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
@@ -31,6 +32,9 @@ class CVService:
     # Analyze Offer
     # ───────────────────────────────
     def analyze_offer(self, req: AnalyzeOfferRequest):
+
+        print("DEBUG REQUEST:", req)
+
         if not req.offer_text.strip():
             raise HTTPException(400, "offer_text no puede estar vacío")
 
@@ -50,10 +54,6 @@ class CVService:
             result["cv_skills"] = cv_skills
             result["comparison"] = comparison
 
-            print("DEBUG CONTACT:", profile.contact.name)
-            print("DEBUG EXPERIENCE:", profile.experience)
-            print("DEBUG EDUCATION:", profile.education)
-            print("DEBUG SKILLS:", profile.skills)
         return JSONResponse(result)
 
 
@@ -78,7 +78,6 @@ class CVService:
     # ───────────────────────────────
     # Generate CV
     # ───────────────────────────────
-
 
     def generate_cv(self, req: GenerateCVRequest):
 
@@ -115,18 +114,26 @@ class CVService:
 
         # ─ HTML ─
         if req.format == "html":
-            html = generate_html_cv(profile, photo_base64=req.photo_base64 or "")
-            filename = f"cv_{profile.contact.name.replace(' ', '_')}.html"
-            output_path = OUTPUT_DIR / filename
-            output_path.write_text(html, encoding="utf-8")
-            return JSONResponse({"html": html, "filename": filename, "optimization": optimization_notes})
+            html_content = generate_html_cv(profile, photo_base64=req.photo_base64 or "")
 
-        # ─ PDF ─
+            # Creamos un buffer en memoria en lugar de un archivo en disco
+            buffer = BytesIO(html_content.encode("utf-8"))
+            filename = f"cv_{profile.contact.name.replace(' ', '_')}.html"
+
+            return StreamingResponse(
+                buffer,
+                media_type="text/html",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
         if req.format == "pdf":
             if not FPDF_AVAILABLE:
                 raise HTTPException(500, "fpdf2 no instalado. Ejecuta: pip install fpdf2")
 
-            filename = f"cv_{profile.contact.name.replace(' ', '_')}.pdf"
+            # Generamos el ID aquí para que sea único en cada descarga
+            request_id = str(uuid.uuid4())[:8]
+
+            # USAMOS request_id aquí:
+            filename = f"cv_{request_id}_{profile.contact.name.replace(' ', '_')[:15]}.pdf"
             photo_tmp = None
 
             if req.photo_base64:
@@ -226,7 +233,7 @@ class CVService:
             "education": {
                 "school": latest_edu.institution if latest_edu else "",
                 "degree": latest_edu.degree if latest_edu else "",
-                "field": latest_edu.field if latest_edu else "",
+                "field": latest_edu.field_of_study if latest_edu else "",
                 "end_date": latest_edu.end_date if latest_edu else "",
             },
             "skills_text": ", ".join(profile.skills[:15]),
@@ -240,4 +247,41 @@ class CVService:
     def _calculate_years(self, profile: CVProfile) -> str:
         if not profile.experience:
             return "0"
-        return str(len(profile.experience) * 2) + "+"
+
+        total_months = 0
+        now = datetime.now()
+
+        for exp in profile.experience:
+            try:
+                # 1. Normalizar y parsear fecha de inicio
+                start_str = exp.start_date.strip().lower()
+                # Intenta formatos comunes: 2022-01 o 01/2022
+                if "-" in start_str:
+                    start_dt = datetime.strptime(start_str, "%Y-%m")
+                else:
+                    start_dt = datetime.strptime(start_str, "%m/%Y")
+
+                # 2. Normalizar y parsear fecha de fin
+                end_str = exp.end_date.strip().lower() if exp.end_date else "presente"
+
+                if any(x in end_str for x in ["presente", "actual", "present"]):
+                    end_dt = now
+                elif "-" in end_str:
+                    end_dt = datetime.strptime(end_str, "%Y-%m")
+                else:
+                    end_dt = datetime.strptime(end_str, "%m/%Y")
+
+                # 3. Calcular diferencia en meses
+                diff = (end_dt.year - start_dt.year) * 12 + (end_dt.month - start_dt.month)
+                if diff > 0:
+                    total_months += diff
+            except Exception:
+                # Si el formato no coincide, ignoramos ese bloque para no romper la app
+                continue
+
+        years = total_months // 12
+        months = total_months % 12
+
+        if years == 0:
+            return f"{months} meses"
+        return f"{years}.{months // 1} años"

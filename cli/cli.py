@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 """
 cli.py — CV Optimizer CLI
 Uso sin servidor FastAPI. Analiza, optimiza y genera CV desde terminal.
@@ -13,14 +13,18 @@ Uso:
 import argparse
 import json
 import sys
+import re
 from pathlib import Path
 
 # Asegura imports desde la raíz
 sys.path.insert(0, str(Path(__file__).parent))
-
+from app.services.cv_service import CVService
 from app.infrastructure.nlp.skills_detector import detect_skills, compare_cv_vs_offer
-from models.cv_model import CVProfile, optimize_cv, analyze_bullet_quality
-from app.infrastructure.exporters.pdf_generator import ATSPDFGenerator, generate_html_cv, FPDF_AVAILABLE
+from app.domain.cv_model import CVProfile, optimize_cv, analyze_bullet_quality
+from app.infrastructure.exporters.pdf_generator import ATSPDFGenerator, FPDF_AVAILABLE
+from app.infrastructure.exporters.html_generator import generate_html_cv
+
+service = CVService()
 
 # ─── Colores ANSI ─────────────────────────────────────────────────────────────
 G  = "\033[92m"   # verde
@@ -98,7 +102,7 @@ def cmd_generate(args):
         score = comparison['ats_score']
         print(f"{B}ATS Score estimado: {score}/100{RESET}")
 
-    name_slug = profile.contact.name.replace(' ', '_') or 'CV'
+    name_slug = re.sub(r'[^\w\s-]', '', profile.contact.name).strip().replace(' ', '_') or 'CV'
     out_dir = Path("output")
     out_dir.mkdir(exist_ok=True)
 
@@ -113,36 +117,44 @@ def cmd_generate(args):
         if not FPDF_AVAILABLE:
             print(f"{R}fpdf2 no instalado. Ejecuta: pip install fpdf2{RESET}")
             sys.exit(1)
-        out = str(out_dir / f"cv_{name_slug}.pdf")
+        out_path = out_dir / f"cv_{name_slug}.pdf"
         gen = ATSPDFGenerator(profile)
-        gen.generate(out)
-        print(f"{G}✅ PDF generado: {out}{RESET}")
+        pdf_bytes = gen.generate()  # Obtiene los bytes
+        with open(out_path, "wb") as f:
+            f.write(pdf_bytes)  # Guarda el archivo físico
+        print(f"{G}✅ PDF generado: {out_path}{RESET}")
 
     elif fmt == 'json':
         out = out_dir / f"cv_{name_slug}.json"
         out.write_text(profile.to_json(), encoding='utf-8')
         print(f"{G}✅ JSON exportado: {out}{RESET}")
 
+
     elif fmt == 'autofill':
-        c = profile.contact
-        exp0 = profile.experience[0] if profile.experience else None
-        edu0 = profile.education[0] if profile.education else None
-        autofill = {
-            "personal": {
-                "first_name": c.name.split()[0],
-                "last_name": " ".join(c.name.split()[1:]),
-                "email": c.email, "phone": c.phone, "location": c.location,
-                "linkedin": c.linkedin,
-            },
-            "current_role": {"title": exp0.position, "company": exp0.company} if exp0 else {},
-            "education": {"school": edu0.institution, "degree": edu0.degree, "end_date": edu0.end_date} if edu0 else {},
-            "skills_text": ", ".join(profile.skills[:15]),
-            "summary": profile.summary,
-        }
+
+        # 1. Llamamos al servicio
+
+        response = service.linkedin_autofill(profile.to_json())
+
+        # 2. Extraemos el contenido (viene como bytes) y lo convertimos a un dict de Python
+
+        import json
+
+        data_dict = json.loads(response.body.decode('utf-8'))
+
+        # 3. Lo guardamos con formato "pretty print" (indentado) para que sea legible
+
+        autofill_data_pretty = json.dumps(data_dict, ensure_ascii=False, indent=2)
+
         out = out_dir / f"autofill_{name_slug}.json"
-        out.write_text(json.dumps(autofill, ensure_ascii=False, indent=2), encoding='utf-8')
+
+        out.write_text(autofill_data_pretty, encoding='utf-8')
+
         print(f"{G}✅ Autofill JSON generado: {out}{RESET}")
-        print(json.dumps(autofill, ensure_ascii=False, indent=2))
+
+        print(f"\n{BOLD}Datos para LinkedIn / HiringRoom:{RESET}")
+
+        print(autofill_data_pretty)
 
 
 def cmd_bullets(args):

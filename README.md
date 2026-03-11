@@ -1,7 +1,4 @@
 # TuCV Optimizer (CV Optimizer — ATS Pro)
-
-
-
 ---
 
 ## 🚀 Instalación rápida
@@ -107,10 +104,14 @@ cv_optimizer/
 │   ├── dependencies.py  
 │   ├── main.py     
 ├── web/
-│   └── index.html  
+│   ├── index.html
+│   └── js/
+│       └── analysis.js  
 ├── cli/
 │   ├── __init__.py
-│   └── cli.py                   
+│   └── cli.py
+├── fonts/
+├── output/                   
 └── README.md
 ```
 

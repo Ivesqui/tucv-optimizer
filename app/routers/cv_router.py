@@ -1,4 +1,3 @@
-print(">>> CV ROUTER FILE:", __file__)
 # cv_router.py
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse

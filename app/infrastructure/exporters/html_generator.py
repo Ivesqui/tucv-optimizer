@@ -60,23 +60,21 @@ def generate_html_cv(profile: CVProfile, photo_base64: str = "") -> str:
         </div>
         """
 
-    # EDUCATION
-    education_html = ""
+        # EDUCATION
+        education_html = ""
+        for edu in profile.education:
+            # Añadimos la lógica para mostrar el campo de estudio si existe
+            estudios = f" en {edu.field_of_study}" if edu.field_of_study else ""
 
-    for edu in profile.education:
-
-        education_html += f"""
-        <div class="entry">
-
-            <div class="row">
-                <span class="org">{edu.institution}</span>
-                <span class="date">{edu.start_date} – {edu.end_date}</span>
+            education_html += f"""
+            <div class="entry">
+                <div class="row">
+                    <span class="org">{edu.institution}</span>
+                    <span class="date">{edu.start_date} – {edu.end_date}</span>
+                </div>
+                <div class="role">{edu.degree}{estudios}</div>
             </div>
-
-            <div class="role">{edu.degree}</div>
-
-        </div>
-        """
+            """
 
     html = f"""
 <!DOCTYPE html>
