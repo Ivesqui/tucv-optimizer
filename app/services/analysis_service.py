@@ -1,14 +1,12 @@
 from app.domain.cv_model import CVProfile
-from app.domain.cv_analysis import analyze_bullet_quality
-from app.infrastructure.nlp.skills_detector import (
-    compare_cv_vs_offer,
-    detect_skills,
-    analyze_experience_quality,
-    AnalysisResponse)
+from app.domain.cv_analysis import analyze_bullet_quality, analyze_experience_quality
+from app.infrastructure.nlp.skills_detector import detect_skills
+from app.domain.cv_ats_engine import compare_cv_vs_offer
 from fastapi import HTTPException
 from app.schemas.analysis_schema import (
     AnalyzeOfferRequest,
-    BulletQualityRequest
+    BulletQualityRequest,
+    AnalysisResponse
 )
 
 class AnalysisService:
@@ -91,7 +89,13 @@ class AnalysisService:
         results = []
         for bullet in req.bullets:
             quality = analyze_bullet_quality(bullet)
-            results.append({"bullet": bullet, **quality})
+            # Mapeamos 'impact_score' a 'score' para que coincida con tu lógica de promedio
+            results.append({
+                "bullet": bullet,
+                "score": quality["impact_score"],
+                **{k: v for k, v in quality.items() if k != "impact_score"}
+            })
+
         avg_score = sum(r["score"] for r in results) / max(len(results), 1)
         return {"results": results, "average_score": round(avg_score, 1)}
 

@@ -1,0 +1,14 @@
+{
+  "financiero": {
+    "keywords": ["costos", "dinero", "gastos", "presupuesto", "ventas", "ingresos", "ahorro"],
+    "suggestion": "¡Detecté términos financieros! Agrega montos específicos (ej. ahorré $10k USD o reduje gastos en un 15%)."
+  },
+  "rendimiento": {
+    "keywords": ["tiempo", "rápido", "latencia", "espera", "procesamiento", "eficiencia"],
+    "suggestion": "¿Mejoraste la velocidad? Indica el tiempo exacto o porcentaje de mejora (ej. reducción del 30% en carga)."
+  },
+  "alcance": {
+    "keywords": ["equipo", "personas", "usuarios", "clientes", "países", "regiones"],
+    "suggestion": "Dale escala a tu logro: ¿A cuántas personas o usuarios impactaste? (ej. equipo de 10 personas o +1M de usuarios)."
+  }
+}

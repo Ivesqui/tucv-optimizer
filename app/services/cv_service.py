@@ -17,8 +17,9 @@ from app.schemas.cv_schema import GenerateCVRequest
 
 from app.infrastructure.nlp.skills_detector import (
     detect_skills,
-    compare_cv_vs_offer)
+    )
 from app.domain.cv_model import CVProfile
+from app.domain.cv_ats_engine import compare_cv_vs_offer
 from app.domain.cv_optimization import optimize_cv
 from app.infrastructure.exporters.pdf_generator import ATSPDFGenerator, FPDF_AVAILABLE
 from app.infrastructure.exporters.html_generator import generate_html_cv
@@ -51,7 +52,8 @@ class CVService:
 
     def generate_cv(self, req: GenerateCVRequest):
         try:
-            profile = CVProfile.from_dict(req.cv_json)
+            cv_data_dict = req.cv_json.model_dump()
+            profile = CVProfile.from_dict(cv_data_dict)
         except Exception as e:
             raise HTTPException(400, f"cv_json inválido: {e}")
 
@@ -197,6 +199,22 @@ class CVService:
     # ───────────────────────────────
     # Helper
     # ───────────────────────────────
+
+    def _parse_spanish_date(self, date_str: str):
+        meses = {
+            "enero": "01", "febrero": "02", "marzo": "03", "abril": "04",
+            "mayo": "05", "junio": "06", "julio": "07", "agosto": "08",
+            "septiembre": "09", "octubre": "10", "noviembre": "11", "diciembre": "12",
+            "ene": "01", "feb": "02", "mar": "03", "abr": "04", "may": "05", "jun": "06",
+            "jul": "07", "ago": "08", "sep": "09", "oct": "10", "nov": "11", "dic": "12"
+        }
+        date_clean = date_str.lower().strip()
+        for mes_es, mes_num in meses.items():
+            if mes_es in date_clean:
+                date_clean = re.sub(rf"{mes_es}\s* de?\s*", f"{mes_num}/", date_clean)
+                date_clean = date_clean.replace(mes_es, f"{mes_num}/")
+        return date_clean
+
     def _calculate_years(self, profile: CVProfile) -> str:
         if not profile.experience:
             return "0"
@@ -207,7 +225,7 @@ class CVService:
         for exp in profile.experience:
             try:
                 # 1. Normalizar y parsear fecha de inicio
-                start_str = exp.start_date.strip().lower()
+                start_str = self._parse_spanish_date(exp.start_date)
                 # Intenta formatos comunes: 2022-01 o 01/2022
                 if "-" in start_str:
                     start_dt = datetime.strptime(start_str, "%Y-%m")
@@ -215,7 +233,7 @@ class CVService:
                     start_dt = datetime.strptime(start_str, "%m/%Y")
 
                 # 2. Normalizar y parsear fecha de fin
-                end_str = exp.end_date.strip().lower() if exp.end_date else "presente"
+                end_str = self._parse_spanish_date(exp.end_date) if exp.end_date else "presente"
 
                 if any(x in end_str for x in ["presente", "actual", "present"]):
                     end_dt = now
@@ -245,3 +263,4 @@ class CVService:
         text = text.encode('ascii', 'ignore').decode('ascii')
         text = re.sub(r'[^\w\s-]', '', text).strip().lower()
         return re.sub(r'[-\s]+', '_', text)
+

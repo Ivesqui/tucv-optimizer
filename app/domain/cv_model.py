@@ -7,9 +7,8 @@ from dataclasses import dataclass, field as dc_field, asdict
 from typing import List
 import json
 
-# Importamos los diccionarios cargados en el motor
+field = dc_field
 
-field = dc_field  # alias para no romper el código existente
 @dataclass
 class ContactInfo:
     name: str = ""
@@ -20,17 +19,15 @@ class ContactInfo:
     github: str = ""
     portfolio: str = ""
 
-
 @dataclass
 class WorkExperience:
     company: str = ""
     position: str = ""
-    start_date: str = ""        # "2022-03" o "Mar 2022"
-    end_date: str = ""          # "Presente" o "2024-01"
+    start_date: str = ""
+    end_date: str = ""
     location: str = ""
-    bullets: List[str] = dc_field(default_factory=list)   # logros / responsabilidades
+    bullets: List[str] = dc_field(default_factory=list)
     skills_used: List[str] = dc_field(default_factory=list)
-
 
 @dataclass
 class Education:
@@ -42,7 +39,6 @@ class Education:
     gpa: str = ""
     highlights: List[str] = dc_field(default_factory=list)
 
-
 @dataclass
 class Project:
     name: str = ""
@@ -51,14 +47,12 @@ class Project:
     url: str = ""
     highlights: List[str] = dc_field(default_factory=list)
 
-
 @dataclass
 class Certification:
     name: str = ""
     issuer: str = ""
     date: str = ""
     url: str = ""
-
 
 @dataclass
 class CVProfile:
@@ -68,8 +62,8 @@ class CVProfile:
     education: List[Education] = dc_field(default_factory=list)
     projects: List[Project] = dc_field(default_factory=list)
     certifications: List[Certification] = dc_field(default_factory=list)
-    skills: List[str] = dc_field(default_factory=list)          # skills técnicas
-    languages: List[str] = dc_field(default_factory=list)       # idiomas
+    skills: List[str] = dc_field(default_factory=list)
+    languages: List[str] = dc_field(default_factory=list)
     soft_skills: List[str] = dc_field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -79,7 +73,6 @@ class CVProfile:
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)
 
     def to_plain_text(self) -> str:
-        """Genera texto plano del CV para análisis NLP."""
         parts = []
         parts.append(f"{self.contact.name}")
         parts.append(self.summary)

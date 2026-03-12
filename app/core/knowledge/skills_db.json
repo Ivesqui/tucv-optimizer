@@ -1,6 +1,6 @@
 {
-  "it_languages": ["python", "javascript", "typescript", "java", "c++", "c#", "go", "rust", "php", "ruby", "sql", "html", "css", "vb.net"],
-  "it_frameworks": ["react", "angular", "vue", "nextjs", "django", "flask", "fastapi", "springboot", "laravel", ".net", "astro"],
+  "it_languages": ["python", "javascript", "postgresql", "typescript", "java", "c++", "c#", "go", "rust", "php", "ruby", "sql", "html", "css", "vb.net"],
+  "it_frameworks": ["react", "fastapi","angular", "vue", "nextjs", "django", "flask", "fastapi", "springboot", "laravel", ".net", "astro"],
   "it_cloud_devops": ["aws", "azure", "gcp", "docker", "kubernetes", "terraform", "jenkins", "github actions", "linux"],
   "retail_y_ventas": ["atención al cliente", "cierre de ventas", "arqueo de caja", "merchandising", "venta sugestiva", "gestión de stock", "pos"],
   "logistica_y_bodega": ["control de inventarios", "picking y packing", "recepción de mercadería", "bpa", "montacargas", "wms", "sap r3"],
