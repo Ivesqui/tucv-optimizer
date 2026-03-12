@@ -11,18 +11,15 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 import unicodedata
 import re
 
-from app.schemas.cv_schema import (
-    AnalyzeOfferRequest,
-    GenerateCVRequest,
-    BulletQualityRequest,
-)
+from app.schemas.cv_schema import GenerateCVRequest
+
+
 
 from app.infrastructure.nlp.skills_detector import (
     detect_skills,
-    compare_cv_vs_offer,
-    analyze_experience_quality,
-    AnalysisResponse)
-from app.domain.cv_model import CVProfile, optimize_cv, analyze_bullet_quality
+    compare_cv_vs_offer)
+from app.domain.cv_model import CVProfile
+from app.domain.cv_optimization import optimize_cv
 from app.infrastructure.exporters.pdf_generator import ATSPDFGenerator, FPDF_AVAILABLE
 from app.infrastructure.exporters.html_generator import generate_html_cv
 
@@ -33,59 +30,6 @@ OUTPUT_DIR = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 class CVService:
-
-    # ───────────────────────────────
-    # Analyze Offer
-    # ───────────────────────────────
-    def analyze_offer(self, req: AnalyzeOfferRequest):
-        """
-        Analiza la oferta y realiza el diagnóstico completo (ATS + Redacción).
-        """
-        if not req.offer_text.strip():
-            raise HTTPException(400, "offer_text no puede estar vacío")
-
-        # 1. Procesar Oferta
-        offer_skills = detect_skills(req.offer_text)
-
-        # Preparamos el contenedor con tipos explícitos para evitar el warning
-        result: dict[str, any] = {
-            "offer_skills": offer_skills,
-            "cv_analysis": None
-        }
-
-        if req.cv_json:
-            try:
-                profile = CVProfile.from_dict(req.cv_json)
-            except Exception as e:
-                raise HTTPException(400, f"cv_json inválido: {e}")
-
-            # 2. Procesar CV
-            cv_text = profile.to_plain_text()
-            cv_skills = detect_skills(cv_text)
-
-            # 3. Cruzar datos (ATS Match)
-            comparison = compare_cv_vs_offer(cv_skills, offer_skills)
-
-            # 4. Calidad de redacción (Nueva lógica de verbos)
-            writing_advice = analyze_experience_quality(cv_text)
-
-            # 5. Construcción del Contrato de Respuesta
-            # Usamos dict() para asegurar que sea serializable sin problemas
-            analysis_payload: AnalysisResponse = {
-                "match_details": comparison,
-                "skills_detected": cv_skills,
-                "writing_advice": writing_advice,
-                "meta": {
-                    "engine_version": "2.0-universal",
-                    "industry_detected": next(iter(cv_skills.get("tech_skills", {}).keys()), "General")
-                }
-            }
-
-            result["cv_analysis"] = analysis_payload
-
-        # Retornamos el diccionario completo.
-        # FastAPI se encarga de convertirlo a JSON automáticamente.
-        return result
 
     def load_cv_from_file(self, filename: str) -> CVProfile | None:
         """
@@ -104,10 +48,6 @@ class CVService:
             return profile
         except Exception as e:
             raise HTTPException(500, f"No se pudo cargar el CV: {e}")
-
-    # ───────────────────────────────
-    # Generate CV
-    # ───────────────────────────────
 
     def generate_cv(self, req: GenerateCVRequest):
         try:
@@ -200,16 +140,6 @@ class CVService:
             )
 
         raise HTTPException(400, "format debe ser: html | pdf | json")
-    # ───────────────────────────────
-    # Analyze Bullets
-    # ───────────────────────────────
-    def analyze_bullets(self, req: BulletQualityRequest):
-        results = []
-        for bullet in req.bullets:
-            quality = analyze_bullet_quality(bullet)
-            results.append({"bullet": bullet, **quality})
-        avg_score = sum(r["score"] for r in results) / max(len(results), 1)
-        return {"results": results, "average_score": round(avg_score, 1)}
 
     # ───────────────────────────────
     # Export JSON

@@ -18,13 +18,13 @@ from pathlib import Path
 
 # Asegura imports desde la raíz
 sys.path.insert(0, str(Path(__file__).parent))
-from app.services.cv_service import CVService
+from app.services.cv_service import AnalysisService
 from app.infrastructure.nlp.skills_detector import detect_skills, compare_cv_vs_offer
 from app.domain.cv_model import CVProfile, optimize_cv, analyze_bullet_quality
 from app.infrastructure.exporters.pdf_generator import ATSPDFGenerator, FPDF_AVAILABLE
 from app.infrastructure.exporters.html_generator import generate_html_cv
 
-service = CVService()
+service = AnalysisService()
 
 # ─── Colores ANSI ─────────────────────────────────────────────────────────────
 G  = "\033[92m"   # verde

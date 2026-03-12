@@ -1,6 +1,7 @@
 # 🚀 TuCV Optimizer (CV Optimizer — ATS Pro)
 
-**TuCV Optimizer** es un motor local-first diseñado para transformar CVs genéricos en herramientas de alto impacto para procesos de selección. Utiliza análisis de datos y reglas de reclutamiento (ATS) para optimizar la narrativa y el emparejamiento técnico sin depender de APIs externas costosas.
+**TuCV Optimizer** es un motor local-first diseñado para transformar CVs genéricos en herramientas de alto impacto para procesos de selección. 
+Utiliza análisis de datos y reglas de reclutamiento (ATS) para optimizar la narrativa y el emparejamiento técnico sin depender de APIs externas costosas.
 
 > **Filosofía:** Privacidad total y cero costos recurrentes. Todo el poder del NLP mediante diccionarios curados, motores de reglas locales y una arquitectura limpia.
 
@@ -44,7 +45,7 @@ app/
 ├── core/knowledge/     # Diccionarios JSON de verbos fuertes, débiles y skills.
 ├── domain/             # Lógica de negocio pura (CVProfile, optimize_cv).
 ├── infrastructure/     # Implementaciones técnicas (PDF Generator, Skill Detector).
-├── services/           # Orquestador de lógica (CVService).
+├── services/           # Orquestador de lógica (AnalysisService).
 ├── routers/            # Definición de endpoints FastAPI (/api/cv/...).
 └── schemas/            # Validaciones Pydantic para la integridad de datos.
 

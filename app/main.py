@@ -3,6 +3,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
+
+from app.routers.analysis_router import router as analysis_router
 from app.routers.cv_router import router as cv_router
 
 # ─── App FastAPI ────────────────────────────────────────────────────────
@@ -19,6 +21,7 @@ app.add_middleware(
 
 # ─── Rutas API ──────────────────────────────────────────────────────────
 app.include_router(cv_router, prefix="/api/cv")
+app.include_router(analysis_router, prefix="/api/analysis")
 
 # ─── Carpeta SPA / Archivos estáticos ───────────────────────────────────
 web_path = Path(__file__).resolve().parent.parent / "web"
