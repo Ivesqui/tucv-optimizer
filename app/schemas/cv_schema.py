@@ -1,24 +1,35 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-# Importamos tus nuevos esquemas
+# 1. Importamos tus nuevos esquemas
 from app.schemas.experience_schema import ExperienceSchema
 from app.schemas.education_schema import EducationSchema
+from app.schemas.metadata_schema import PersonalMetadataSchema
+from app.schemas.project_schema import ProjectSchema  # <--- Importante
+from app.schemas.certification_schema import CertificationSchema  # <--- Importante
+
 
 class CVDataSchema(BaseModel):
-    # Ahora cv_json ya no es un Dict[str, Any] genérico
-    # Definimos la estructura interna que el frontend debe enviar
     contact: dict = Field(default_factory=lambda: {"name": "Usuario"})
+    metadata: PersonalMetadataSchema = Field(default_factory=PersonalMetadataSchema)
     summary: str = ""
     experience: List[ExperienceSchema] = Field(default_factory=list)
     education: List[EducationSchema] = Field(default_factory=list)
+    certifications: List[CertificationSchema] = Field(default_factory=list)
+    projects: List[ProjectSchema] = Field(default_factory=list)
     skills: List[str] = Field(default_factory=list)
     soft_skills: List[str] = Field(default_factory=list)
+    languages: List[str] = Field(default_factory=list)
+
+
+
+
 
 class GenerateCVRequest(BaseModel):
-    # Aquí integramos la validación profunda
     cv_json: CVDataSchema
     offer_text: Optional[str] = None
     optimize: bool = True
-    format: str = "html"
+    format: str = "pdf"
     photo_base64: Optional[str] = None
+    theme_color: str = "CORPORATE_BLUE"
+    font_family: str = "INTER"
