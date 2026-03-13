@@ -1,0 +1,44 @@
+{
+  "tipos_sangre": [
+    {
+      "tipo": "A+",
+      "grupo": "A",
+      "factor_rh": "positivo"
+    },
+    {
+      "tipo": "A-",
+      "grupo": "A",
+      "factor_rh": "negativo"
+    },
+    {
+      "tipo": "B+",
+      "grupo": "B",
+      "factor_rh": "positivo"
+    },
+    {
+      "tipo": "B-",
+      "grupo": "B",
+      "factor_rh": "negativo"
+    },
+    {
+      "tipo": "AB+",
+      "grupo": "AB",
+      "factor_rh": "positivo"
+    },
+    {
+      "tipo": "AB-",
+      "grupo": "AB",
+      "factor_rh": "negativo"
+    },
+    {
+      "tipo": "O+",
+      "grupo": "O",
+      "factor_rh": "positivo"
+    },
+    {
+      "tipo": "O-",
+      "grupo": "O",
+      "factor_rh": "negativo"
+    }
+  ]
+}
