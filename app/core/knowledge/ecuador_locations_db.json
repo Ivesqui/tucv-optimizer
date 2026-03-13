@@ -1,0 +1,49 @@
+{
+  "azuay": ["cuenca","giron","gualaceo","nabon","paute","pucara","san fernando","santa isabel","sevilla de oro","sigsig","camilo ponce enriquez","chordeleg","el pan","guachapala","oña"],
+
+  "bolivar": ["guaranda","chillanes","chimbo","echandia","san miguel","caluma","las naves"],
+
+  "canar": ["azogues","biblian","cañar","la troncal","el tambo","deleg","suscal"],
+
+  "carchi": ["tulcan","bolivar","espejo","mira","montufar","san pedro de huaca"],
+
+  "chimborazo": ["riobamba","alausi","colta","chambo","chunchi","guamote","guano","pallatanga","penipe","cumanda"],
+
+  "cotopaxi": ["latacunga","la mana","pangua","pujili","salcedo","saquisili","sigchos"],
+
+  "el oro": ["machala","arenillas","atahualpa","balsas","chilla","el guabo","huaquillas","las lajas","marcabeli","pasaje","piñas","portovelo","santa rosa","zaruma"],
+
+  "esmeraldas": ["esmeraldas","atacames","elo y alfaro","muisne","quininde","rioverde","san lorenzo"],
+
+  "galapagos": ["san cristobal","isabela","santa cruz"],
+
+  "guayas": ["guayaquil","duran","samborondon","milagro","daule","naranjal","yaguachi","balao","balzar","colimes","el triunfo","general villamil playas","isidro ayora","lomas de sargentillo","marcelino maridueña","naranjito","nobol","palestina","pedro carbo","salitre","santa lucia","simon bolivar"],
+
+  "imbabura": ["ibarra","antonio ante","cotacachi","otavalo","pimampiro","san miguel de urcuqui"],
+
+  "loja": ["loja","calvas","catamayo","celica","chaguarpamba","espindola","gonzanama","macara","olmedo","paltas","pindal","puyango","quilanga","saraguro","sozoranga","zapotillo"],
+
+  "los rios": ["babahoyo","baba","buena fe","mocache","montalvo","palenque","puebloviejo","quinsaloma","urdaneta","valencia","ventanas","vinces","quevedo"],
+
+  "manabi": ["portoviejo","manta","chone","bolivar","el carmen","flavio alfaro","jama","jipijapa","junin","montecristi","olmedo","pajan","pedernales","pichincha","puerto lopez","roca fuerte","san vicente","santa ana","sucre","tosagua","24 de mayo"],
+
+  "morona santiago": ["morona","gualaquiza","huamboya","limon indanza","logroño","pablo sexto","palora","san juan bosco","santiago","sucua","taisha","tiwintza"],
+
+  "napo": ["tena","archidona","el chaco","quijos","carlos julio arosemena tola"],
+
+  "orellana": ["francisco de orellana","aguarico","la joya de los sachas","loreto"],
+
+  "pastaza": ["pastaza","mera","santa clara","ara juno"],
+
+  "pichincha": ["quito","cayambe","mejia","rumiñahui","pedro moncayo","san miguel de los bancos","puerto quito","pedro vicente maldonado"],
+
+  "santa elena": ["santa elena","la libertad","salinas"],
+
+  "santo domingo de los tsachilas": ["santo domingo","la concordia"],
+
+  "sucumbios": ["lago agrio","cascales","cuyabeno","gonzalo pizarro","putumayo","shushufindi","sucumbios"],
+
+  "tungurahua": ["ambato","baños","cevallos","mocha","patate","pelileo","pillaro","quiero","tisaleo"],
+
+  "zamora chinchipe": ["zamora","centinela del condor","chinchipe","el pangui","nangaritza","palanda","paquisha","yacuambi","yantzaza"]
+}
