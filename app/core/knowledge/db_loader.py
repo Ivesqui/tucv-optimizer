@@ -34,9 +34,14 @@ VERBS_DB = load_json("action_verbs_db.json")
 METRICS_DB = load_json("metrics_db.json")
 WEAK_VERBS_DB = load_json("weak_verbs_db.json")
 WEAK_TO_STRONG_MAP = load_json("weak_to_strong_map.json")
+WORK_AREAS_DB = load_json("work_areas_db.json")
+BLOOD_TYPES_DB = load_json("blood_type_db.json")
+LOCATIONS_DB = load_json("ecuador_locations_db.json")
+ETHNICITIES_DB = load_json("ethnicity_db.json")
 _tech_raw = load_json("skills_db.json")
 _soft_raw = load_json("soft_skills_db.json")
 _rules_raw = load_json("rules_db.json")
+
 
 WEAK_TO_STRONG_MAP_CLEAN = {clean_text(k): v for k, v in WEAK_TO_STRONG_MAP.items()}
 ALL_STRONG_VERBS = [clean_text(v) for sublist in VERBS_DB.values() for v in sublist]
@@ -58,3 +63,14 @@ _SENIORITY_PATTERNS = {
 }
 
 _EDUCATION_KEYWORDS = _rules_raw.get("education_keywords", [])
+
+_AREA_PATTERNS = [
+    (area_key, formal_name, _compile_pattern(area_key))
+    for area_key, formal_name in WORK_AREAS_DB.items()
+]
+
+_LOCATION_LOOKUP = [
+    (canton.lower(), provincia.capitalize())
+    for provincia, cantones in LOCATIONS_DB.items()
+    for canton in cantones
+]

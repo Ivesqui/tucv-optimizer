@@ -9,6 +9,40 @@ import json
 
 field = dc_field
 
+
+@dataclass
+class PersonalMetadata:
+    # Identidad
+    id_type: str = ""  # Cédula, Pasaporte
+    id_number: str = ""
+    birth_date: str = ""  # ISO o formato legible
+    gender: str = ""  # Masculino, Femenino, Otro
+    marital_status: str = ""  # Soltero, Casado, etc.
+    nationality: str = ""
+    ethnicity: str = ""  # Para Encuentra Empleo
+
+    # Salud y Acciones Afirmativas
+    disability_status: bool = False
+    disability_percentage: int = 0
+    blood_type: str = ""  # Para Encuentra Empleo
+    catastrophic_illness_family: bool = False
+
+    # Legal y Logística
+    drivers_license: str = ""  # No, Tipo A, Tipo B, etc.
+    owns_vehicle: bool = False
+    willing_to_travel: bool = False
+    willing_to_relocate: bool = False
+    military_service_status: str = ""  # A veces pedido en sector público
+
+    # Ubicación detallada
+    province: str = ""
+    canton: str = ""
+    parish: str = ""  # Parroquia
+    address_main_street: str = ""
+    address_secondary_street: str = ""
+    address_reference: str = ""
+
+
 @dataclass
 class ContactInfo:
     name: str = ""
@@ -50,13 +84,14 @@ class Project:
 @dataclass
 class Certification:
     name: str = ""
-    issuer: str = ""
+    issue: str = ""
     date: str = ""
     url: str = ""
 
 @dataclass
 class CVProfile:
     contact: ContactInfo = dc_field(default_factory=ContactInfo)
+    metadata: PersonalMetadata = dc_field(default_factory=PersonalMetadata)  # NUEVO
     summary: str = ""
     experience: List[WorkExperience] = dc_field(default_factory=list)
     education: List[Education] = dc_field(default_factory=list)
@@ -65,6 +100,7 @@ class CVProfile:
     skills: List[str] = dc_field(default_factory=list)
     languages: List[str] = dc_field(default_factory=list)
     soft_skills: List[str] = dc_field(default_factory=list)
+
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -94,8 +130,11 @@ class CVProfile:
         education = [Education(**{"field_of_study" if k=="field" else k: v for k,v in e.items()}) for e in data.get("education", [])]
         projects = [Project(**p) for p in data.get("projects", [])]
         certifications = [Certification(**c) for c in data.get("certifications", [])]
+        metadata_data = data.get("metadata", {})
+        metadata = PersonalMetadata(**metadata_data)
         return cls(
             contact=contact,
+            metadata=metadata,
             summary=data.get("summary", ""),
             experience=experience,
             education=education,

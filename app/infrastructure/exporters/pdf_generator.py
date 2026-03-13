@@ -6,13 +6,14 @@ Genera un PDF ATS-friendly a partir de CVProfile con soporte para textos largos.
 from __future__ import annotations
 import logging
 import os
-from typing import List, Optional
+from typing import List, Optional, cast, Tuple
 from app.domain.cv_model import CVProfile
 
 try:
     from fpdf import FPDF
     FPDF_AVAILABLE = True
 except ImportError:
+    from fpdf import FPDF
     FPDF_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,8 @@ _LABELS: dict[str, dict[str, str]] = {
         "soft_skills_prefix": "Soft skills",
         "experience": "Experiencia Profesional",
         "education": "Educación",
+        "certifications": "Certificaciones",
+        "projects": "Proyectos",
         "present": "Presente",
         "stack_prefix": "Stack",
         "study_in": "en",
@@ -54,6 +57,14 @@ _LABELS: dict[str, dict[str, str]] = {
     },
 }
 
+def _hex_to_rgb(hex_str: str) -> Tuple[int, int, int]:
+    hex_str = hex_str.lstrip('#')
+    if len(hex_str) != 6:
+        return (30, 100, 200)
+    # Casteamos explícitamente a un tuple de 3 elementos
+    rgb = tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
+    return cast(Tuple[int, int, int], rgb)
+
 def _sanitize_text(text: Optional[str]) -> str:
     if not text: return ""
     return text.replace("–", "-").replace("—", "-").replace("•", "-")
@@ -62,20 +73,33 @@ def _safe_join(items: List[Optional[str]], sep: str = "  ·  ") -> str:
     return sep.join(_sanitize_text(i) for i in items if i)
 
 class ATSPDFGenerator:
-    def __init__(self, profile: CVProfile, lang: str = "es") -> None:
+    accent_rgb: tuple[int, int, int]
+    font_family: str
+    def __init__(self, profile: CVProfile, lang: str = "es", color_rgb: tuple[int, int, int] = (30, 100, 200), font_choice: str = "Inter") -> None:
         if not FPDF_AVAILABLE: raise ImportError("fpdf2 no instalado")
         if lang not in _LABELS: raise ValueError(f"Idioma '{lang}' no soportado")
 
         self.profile = profile
         self.lang = lang
-        self._labels = _LABELS[lang]
+        self._labels = _LABELS.get(lang, _LABELS["es"])
         self._generated = False
+        self.accent_rgb = color_rgb
+        self.font_family = font_choice
+        self.unicode_ready = True  # Bandera de control
 
         self._pdf = FPDF(format="A4")
-        self._pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
-        self._pdf.add_font("DejaVu", "B", "fonts/DejaVuSans-Bold.ttf", uni=True)
-        self._pdf.add_font("DejaVu", "I", "fonts/DejaVuSans-Oblique.ttf", uni=True)
-        self._pdf.add_font("DejaVu", "BI", "fonts/DejaVuSans-BoldOblique.ttf", uni=True)
+
+        # Mapeo de fuentes
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        path_prefix = os.path.join(base_dir, "fonts", self.font_family, self.font_family)
+        try:
+            self._pdf.add_font(self.font_family, "", f"{path_prefix}-Regular.ttf")
+            self._pdf.add_font(self.font_family, "B", f"{path_prefix}-Bold.ttf")
+            self._pdf.add_font(self.font_family, "I", f"{path_prefix}-Italic.ttf")
+        except FileNotFoundError as e:
+            logger.error(f"Error cargando fuentes: {e}")
+            self.font_family = "Arial"  # Arial es estándar en FPDF en caso de que falle.
+            self.unicode_ready = False
 
         self._pdf.set_margins(MARGIN, MARGIN, MARGIN)
         self._pdf.set_auto_page_break(auto=True, margin=MARGIN)
@@ -86,7 +110,7 @@ class ATSPDFGenerator:
         self._col_side = self._page_width * 0.30
 
     def _set_font(self, style: str = "", size: float = 10) -> None:
-        self._pdf.set_font(FONT_NAME, style=style, size=size)
+        self._pdf.set_font(self.font_family, style=style, size=size)
 
     def _set_color(self, rgb):
         self._pdf.set_text_color(*rgb)
@@ -94,7 +118,7 @@ class ATSPDFGenerator:
     def _section_line(self, title: str):
         self._pdf.ln(3)
         self._set_font("B", 11)
-        self._set_color(COLOR_ACCENT)
+        self._set_color(self.accent_rgb)
         self._pdf.cell(0, 6, _sanitize_text(title.upper()), new_x="LMARGIN", new_y="NEXT")
         self._pdf.set_draw_color(*COLOR_LINE)
         self._pdf.line(MARGIN, self._pdf.get_y(), self._pdf.w - MARGIN, self._pdf.get_y())
@@ -193,7 +217,7 @@ class ATSPDFGenerator:
             self._pdf.cell(self._col_side, 5, _sanitize_text(date_range), new_x="LMARGIN", new_y="NEXT", align="R")
 
             self._set_font("B", 10)
-            self._set_color(COLOR_ACCENT)
+            self._set_color(self.accent_rgb)
             loc = f" - {exp.location}" if exp.location else ""
             self._pdf.multi_cell(0, 5, _sanitize_text(exp.position + loc), new_x="LMARGIN", new_y="NEXT")
 
@@ -235,6 +259,33 @@ class ATSPDFGenerator:
             self._pdf.multi_cell(0, 5, _sanitize_text(degree), new_x="LMARGIN", new_y="NEXT")
             self._pdf.ln(1)
 
+    def _add_projects(self):
+        if not getattr(self.profile, "projects", None): return
+        self._section_line(self._labels["projects"])
+        for proj in self.profile.projects:
+            self._set_font("B", 10)
+            self._pdf.cell(0, 5, _sanitize_text(proj.name), new_x="LMARGIN", new_y="NEXT")
+            self._set_font("I", 9)
+            self._pdf.multi_cell(0, 5, _sanitize_text(proj.description))
+            if proj.tech_stack:
+                self._render_stack(proj.tech_stack)
+            self._pdf.ln(2)
+
+    def _add_certifications(self):
+        if not getattr(self.profile, "certifications", None): return
+        self._section_line(self._labels["certifications"])
+        for cert in self.profile.certifications:
+            self._set_font("B", 10)
+            self._pdf.cell(self._col_main, 5, _sanitize_text(cert.name))
+
+            self._set_color(COLOR_GRAY)
+            self._set_font("", 9)
+            self._pdf.cell(self._col_side, 5, _sanitize_text(cert.date), new_x="LMARGIN", new_y="NEXT", align="R")
+
+            self._set_color(COLOR_PRIMARY)
+            self._pdf.cell(0, 5, _sanitize_text(cert.issue), new_x="LMARGIN", new_y="NEXT")
+            self._pdf.ln(1)
+
     def generate(self) -> bytes:
         if self._generated: raise RuntimeError("generate() ya fue llamado")
         self._add_header()
@@ -242,5 +293,7 @@ class ATSPDFGenerator:
         self._add_skills()
         self._add_experience()
         self._add_education()
+        self._add_projects()
+        self._add_certifications()
         self._generated = True
         return bytes(self._pdf.output(dest="S"))

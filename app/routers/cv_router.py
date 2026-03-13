@@ -1,9 +1,6 @@
-# cv_router.py
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from io import BytesIO
-
-
 from app.schemas.cv_schema import GenerateCVRequest
 from app.infrastructure.exporters.pdf_generator import ATSPDFGenerator
 from app.services.cv_service import CVService

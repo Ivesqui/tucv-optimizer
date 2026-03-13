@@ -1,4 +1,3 @@
-# cv_service.py
 from pathlib import Path
 import base64
 import tempfile
@@ -6,36 +5,33 @@ import os
 from io import BytesIO
 from datetime import datetime
 import uuid
+from typing import Any, cast
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 import unicodedata
 import re
 
 from app.schemas.cv_schema import GenerateCVRequest
-
-
-
-from app.infrastructure.nlp.skills_detector import (
-    detect_skills,
-    )
+from app.infrastructure.nlp.skills_detector import detect_skills
 from app.domain.cv_model import CVProfile
 from app.domain.cv_ats_engine import compare_cv_vs_offer
 from app.domain.cv_optimization import optimize_cv
 from app.infrastructure.exporters.pdf_generator import ATSPDFGenerator, FPDF_AVAILABLE
-from app.infrastructure.exporters.html_generator import generate_html_cv
+
+from app.infrastructure.exporters.style_config import COLORS, FONTS
 
 
 import traceback
 
+from app.services.identity_service import IdentityService
+
 OUTPUT_DIR = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
+
 
 class CVService:
 
     def load_cv_from_file(self, filename: str) -> CVProfile | None:
-        """
-        Carga un CV previamente guardado en OUTPUT_DIR como JSON y devuelve un CVProfile.
-        """
         if "/" in filename or ".." in filename:
             raise HTTPException(400, "Nombre de archivo inválido")
 
@@ -59,14 +55,12 @@ class CVService:
 
         optimization_notes = {}
 
-        # 1. OPTIMIZACIÓN GLOBAL (Afecta a JSON, HTML y PDF por igual)
+        # --- Lógica de Optimización NLP ---
         if req.offer_text and req.optimize:
-            offer_skills = detect_skills(req.offer_text)
+            offer_skills = cast(dict[str, Any], detect_skills(req.offer_text))
             cv_text = profile.to_plain_text()
-            cv_skills = detect_skills(cv_text)
-            comparison = compare_cv_vs_offer(cv_skills, offer_skills)
-
-            # Aquí 'profile' se transforma (Verbos + Skills)
+            cv_skills = cast(dict[str, Any], detect_skills(cv_text))
+            comparison = cast(dict[str, Any], compare_cv_vs_offer(cv_skills, offer_skills))
             profile, promoted, suggested_soft = optimize_cv(
                 profile,
                 comparison["missing_tech"],
@@ -78,36 +72,34 @@ class CVService:
                 "skills_promoted": promoted,
                 "soft_skills_suggested": suggested_soft,
                 "recommendations": comparison["recommendations"],
-                "narrative_improved": True  # Indicador de que se mejoraron verbos
+                "narrative_improved": True
             }
 
-        # 2. SELECCIÓN DE FORMATO
-
-        # ─ JSON ─
+        # --- Formato JSON ---
         if req.format == "json":
-            return JSONResponse({"cv": profile.to_dict(), "optimization": optimization_notes})
+            identity_map = IdentityService().get_all_platform_mappings(profile)
+            return JSONResponse({
+                "cv": profile.to_dict(),
+                "optimization": optimization_notes,
+                "autofill_helper": identity_map
+            })
 
-        # ─ HTML ─
-        if req.format == "html":
-            # Usa el profile ya optimizado
-            safe_name = self.slugify_safe(profile.contact.name)
-            filename = f"cv_{safe_name}.html"
-            html_content = generate_html_cv(profile, photo_base64=req.photo_base64 or "")
-            buffer = BytesIO(html_content.encode("utf-8"))
-
-            return StreamingResponse(buffer, media_type="text/html",
-                                     headers={"Content-Disposition": f"attachment; filename={filename}"})
-
-        # ─ PDF ─
+        # --- Formato PDF (Única Verdad) ---
         if req.format == "pdf":
             if not FPDF_AVAILABLE:
                 raise HTTPException(500, "fpdf2 no instalado")
 
+            # 1. Obtener configuración de estilo DESDE tu style_config
+            style_data = COLORS.get(req.theme_color, COLORS["CORPORATE_BLUE"])
+            accent_color = style_data["accent"]  # Esto es una tupla (R, G, B)
+            font_name = FONTS.get(req.font_family, "Inter")
+
+            # 2. Configurar metadatos del archivo
             request_id = str(uuid.uuid4())[:8]
-            safe_name = self.slugify_safe(profile.contact.name)[:15]  # Corto para que no sea un link gigante
+            safe_name = self.slugify_safe(profile.contact.name)[:15]
             filename = f"cv_{request_id}_{safe_name}.pdf"
 
-            # Manejo de Foto (Temporal)
+            # 3. Manejo de Foto Temporal
             photo_tmp = None
             if req.photo_base64:
                 try:
@@ -117,48 +109,46 @@ class CVService:
                     photo_tmp = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
                     photo_tmp.write(img_bytes)
                     photo_tmp.close()
-                    profile.photo_path = photo_tmp.name  # Inyectamos la ruta para el PDF
-                except Exception:
-                    pass
+                    profile.photo_path = photo_tmp.name
+                except Exception as e:
+                    print(f"Error procesando foto: {e}")
 
             try:
-                # IMPORTANTE: Aquí pasamos el 'profile' que ya pasó por optimize_cv
-                pdf_bytes = ATSPDFGenerator(profile).generate()
-                buffer = BytesIO(pdf_bytes)
+                # 4. UNA SOLA GENERACIÓN: Usamos los datos mapeados arriba
+                pdf_gen = ATSPDFGenerator(
+                    profile,
+                    color_rgb=accent_color,
+                    font_choice=font_name
+                )
+                pdf_bytes = pdf_gen.generate()
+
+                pdf_buffer = BytesIO(pdf_bytes)
+                return StreamingResponse(
+                    pdf_buffer,
+                    media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename={filename}"}
+                )
             except Exception as e:
                 traceback.print_exc()
                 raise HTTPException(500, f"Error generando PDF: {e}")
             finally:
+                # Limpieza del archivo temporal de la foto
                 if photo_tmp:
                     try:
                         os.unlink(photo_tmp.name)
                     except Exception:
                         pass
 
-            return StreamingResponse(
-                buffer,
-                media_type="application/pdf",
-                headers={"Content-Disposition": f"attachment; filename={filename}"}
-            )
-
         raise HTTPException(400, "format debe ser: html | pdf | json")
 
-    # ───────────────────────────────
-    # Export JSON
-    # ───────────────────────────────
     def export_json(self, filename: str):
         if "/" in filename or ".." in filename:
             raise HTTPException(400, "Nombre de archivo inválido")
-
         path = OUTPUT_DIR / filename
         if not path.exists():
             raise HTTPException(404, "Archivo no encontrado")
-
         return FileResponse(str(path), media_type="application/json", filename=filename)
 
-    # ───────────────────────────────
-    # LinkedIn Autofill
-    # ───────────────────────────────
     def linkedin_autofill(self, cv_json: str):
         try:
             profile = CVProfile.from_json(cv_json)
@@ -196,10 +186,6 @@ class CVService:
             "experience_years": self._calculate_years(profile),
         })
 
-    # ───────────────────────────────
-    # Helper
-    # ───────────────────────────────
-
     def _parse_spanish_date(self, date_str: str):
         meses = {
             "enero": "01", "febrero": "02", "marzo": "03", "abril": "04",
@@ -218,47 +204,28 @@ class CVService:
     def _calculate_years(self, profile: CVProfile) -> str:
         if not profile.experience:
             return "0"
-
         total_months = 0
         now = datetime.now()
-
         for exp in profile.experience:
             try:
-                # 1. Normalizar y parsear fecha de inicio
                 start_str = self._parse_spanish_date(exp.start_date)
-                # Intenta formatos comunes: 2022-01 o 01/2022
-                if "-" in start_str:
-                    start_dt = datetime.strptime(start_str, "%Y-%m")
-                else:
-                    start_dt = datetime.strptime(start_str, "%m/%Y")
-
-                # 2. Normalizar y parsear fecha de fin
+                start_dt = datetime.strptime(start_str, "%Y-%m") if "-" in start_str else datetime.strptime(start_str,
+                                                                                                            "%m/%Y")
                 end_str = self._parse_spanish_date(exp.end_date) if exp.end_date else "presente"
-
                 if any(x in end_str for x in ["presente", "actual", "present"]):
                     end_dt = now
-                elif "-" in end_str:
-                    end_dt = datetime.strptime(end_str, "%Y-%m")
                 else:
-                    end_dt = datetime.strptime(end_str, "%m/%Y")
-
-                # 3. Calcular diferencia en meses
+                    end_dt = datetime.strptime(end_str, "%Y-%m") if "-" in end_str else datetime.strptime(end_str,
+                                                                                                          "%m/%Y")
                 diff = (end_dt.year - start_dt.year) * 12 + (end_dt.month - start_dt.month)
-                if diff > 0:
-                    total_months += diff
+                if diff > 0: total_months += diff
             except Exception:
-                # Si el formato no coincide, ignoramos ese bloque para no romper la app
                 continue
-
         years = total_months // 12
         months = total_months % 12
+        return f"{months} meses" if years == 0 else f"{years}.{months} años"
 
-        if years == 0:
-            return f"{months} meses"
-        return f"{years}.{months // 1} años"
-
-    def slugify_safe(self, text: str) -> str: # Añadido 'self'
-        """ Transforma 'Christian Estupiñán' -> 'christian_estupinan' """
+    def slugify_safe(self, text: str) -> str:
         text = unicodedata.normalize('NFKD', text)
         text = text.encode('ascii', 'ignore').decode('ascii')
         text = re.sub(r'[^\w\s-]', '', text).strip().lower()

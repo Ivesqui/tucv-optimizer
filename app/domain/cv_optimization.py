@@ -58,18 +58,15 @@ def optimize_cv(
 
     # 2. OPTIMIZACIÓN NARRATIVA: Experiencia (Bullets)
     for exp in optimized.experience:
-        # Aplicamos la transformación a cada bullet point
         exp.bullets = [_smart_replace(bullet) for bullet in exp.bullets]
 
     # 3. PROMOCIÓN DE SKILLS TÉCNICAS
-    # Usamos clean_text para comparar sin importar tildes o mayúsculas
     experience_text = " ".join([b for exp in optimized.experience for b in exp.bullets])
     all_experience_normalized = clean_text(experience_text)
 
     skills_to_promote = []
     for skill in missing_tech:
         skill_clean = clean_text(skill)
-        # Si la skill está en el texto pero no en la lista de skills oficial, la promocionamos
         if skill_clean in all_experience_normalized and skill_clean not in all_experience_normalized:
             skills_to_promote.append(skill)
 
@@ -81,6 +78,6 @@ def optimize_cv(
     soft_to_add = [
         s for s in missing_soft
         if clean_text(s) not in existing_soft_normalized
-    ][:3]  # Limitamos a las 3 mejores sugerencias
+    ][:3]
 
     return optimized, skills_to_promote, soft_to_add

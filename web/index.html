@@ -97,10 +97,16 @@
       <button class="btn btn-secondary" onclick="addEducation()" style="margin-top:8px">+ Agregar educación</button>
     </div>
 
-    <div class="card">
-      <div class="card-title"><span>🚀</span> Proyectos Destacados</div>
-      <div id="projects-list"></div>
-      <button class="btn btn-secondary" onclick="addProject()" style="margin-top:8px">+ Agregar proyecto</button>
+  <div class="card" style="margin-top:20px">
+      <div class="card-title"><span>📚</span> Cursos o Certificaciones</div>
+      <div id="certifications-list"></div>
+      <button class="btn btn-secondary" onclick="addCertification()" style="margin-top:8px">+ Agregar certificación</button>
+    </div>
+
+  <div class="card" style="margin-top:20px">
+     <div class="card-title"><span>🚀</span> Proyectos Destacados</div>
+     <div id="projects-list"></div>
+     <button class="btn btn-secondary" onclick="addProject()" style="margin-top:8px">+ Agregar proyecto</button>
     </div>
   </div>
 
@@ -132,53 +138,73 @@ Buscamos un Desarrollador Backend Senior con experiencia en:
     </div>
   </div>
 
-  <!-- ── TAB: EXPORT ── -->
-  <div class="tab-panel" id="tab-export">
-    <div class="split">
-      <div class="card">
-        <div class="card-title"><span>📄</span> Exportar CV</div>
-        <p style="font-size:13px; color:var(--muted); margin-bottom:16px">Genera tu CV listo para subir a portales de empleo.</p>
-        <div style="display:flex; flex-direction:column; gap:10px">
-          <button class="btn btn-primary" onclick="exportCV('html')" style="justify-content:center">
-            🌐 Descargar HTML (ATS-friendly)
-          </button>
-          <button class="btn btn-secondary" onclick="exportCV('pdf')" style="justify-content:center">
-            📄 Descargar PDF (requiere fpdf2)
-          </button>
-          <button class="btn btn-green" onclick="exportCV('json')" style="justify-content:center">
-            💾 Exportar JSON (reutilizable)
-          </button>
+    <!-- ── TAB: EXPORT ── -->
+<div class="tab-panel" id="tab-export">
+  <div class="split">
+    <div class="card">
+      <div class="card-title"><span>📄</span> Exportar CV</div>
+        <!-- ── STYLE PICKER ── -->
+      <div class="style-picker" style="margin-bottom: 20px; padding: 15px; background: var(--surface2); border-radius: 10px; border: 1px solid var(--border);">
+        <label style="display:block; font-size:11px; font-weight:600; margin-bottom:12px; color:var(--muted); text-transform: uppercase; letter-spacing: .05em;">🎨 TEMA DE COLOR</label>
+        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap: wrap;">
+         <!-- ── DOTS ── -->
+    <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap: wrap; align-items: center;">
+    <div class="color-dot active" data-color="CORPORATE_BLUE" style="background-color:#1e64c8 !important;" title="Corporate Blue"></div>
+    <div class="color-dot" data-color="DUSTY_ROSE" style="background-color:#b47882 !important;" title="Dusty Rose"></div>
+    <div class="color-dot" data-color="DEEP_BERRY" style="background-color:#8c3c5a !important;" title="Deep Berry"></div>
+    <div class="color-dot" data-color="MODERN_SLATE" style="background-color:#6e5096 !important;" title="Modern Slate"></div>
+    <div class="color-dot" data-color="NORDIC_BLUE" style="background-color:#466e8c !important;" title="Nordic Blue"></div>
+    </div>
         </div>
+
+        <label style="display:block; font-size:11px; font-weight:600; margin-bottom:8px; color:var(--muted); text-transform: uppercase; letter-spacing: .05em;">🔤 FUENTE</label>
+        <select id="font-family-select">
+          <option value="INTER">Inter (Moderna)</option>
+          <option value="ROBOTO">Roboto (Limpia)</option>
+          <option value="LORA">Lora (Elegante)</option>
+          <option value="MONTSERRAT">Montserrat (Geométrica)</option>
+          <option value="DEJAVU">DejaVu (Estándar)</option>
+        </select>
       </div>
-      <div class="card">
-        <div class="card-title"><span>🔗</span> LinkedIn Autofill</div>
-        <p style="font-size:13px; color:var(--muted); margin-bottom:12px">Campos mapeados para llenar formularios automáticamente.</p>
-        <button class="btn btn-secondary" onclick="getAutofill()" style="width:100%; justify-content:center; margin-bottom:12px">
-          📋 Generar campos
+
+      <p style="font-size:13px; color:var(--muted); margin-bottom:16px">Genera tu CV listo para subir a portales de empleo.</p>
+
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <button class="btn btn-primary" onclick="exportCV('html')" style="justify-content:center">
+          🌐 Descargar HTML (Personalizado)
         </button>
-        <div id="autofill-box" class="json-box" style="min-height:80px">// Los campos aparecerán aquí...</div>
+        <button class="btn btn-secondary" onclick="exportCV('pdf')" style="justify-content:center">
+          📄 Descargar PDF (Con Estilo)
+        </button>
+        <button class="btn btn-green" onclick="exportCV('json')" style="justify-content:center">
+          💾 Exportar JSON (Datos Crudos)
+        </button>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title"><span>🔬</span> Analizador de Bullets</div>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:12px">Evalúa la calidad de tus logros profesionales.</p>
-      <textarea id="bullets-input" rows="5" placeholder="Pega tus bullets (uno por línea):
-Fui responsable del frontend de la app
-Implementé un sistema de caché que redujo latencia en 40%
-Trabajé con el equipo en el diseño de APIs"></textarea>
-      <button class="btn btn-secondary" onclick="analyzeBullets()" style="margin-top:10px">⚡ Analizar calidad</button>
-      <div id="bullets-results" style="margin-top:12px"></div>
+      <div class="card-title"><span>🔗</span> LinkedIn Autofill</div>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px">Campos mapeados para llenar formularios automáticamente.</p>
+      <button class="btn btn-secondary" onclick="getAutofill()" style="width:100%; justify-content:center; margin-bottom:12px">
+        📋 Generar campos
+      </button>
+      <div id="autofill-box" class="json-box" style="min-height:80px">// Los campos aparecerán aquí...</div>
     </div>
+  </div> <div class="card">
+    <div class="card-title"><span>🔬</span> Analizador de Bullets</div>
+    <p style="font-size:13px; color:var(--muted); margin-bottom:12px">Evalúa la calidad de tus logros profesionales.</p>
+    <textarea id="bullets-input" rows="5" placeholder="Pega tus bullets (uno por línea)..."></textarea>
+    <button class="btn btn-secondary" onclick="analyzeBullets()" style="margin-top:10px">⚡ Analizar calidad</button>
+    <div id="bullets-results" style="margin-top:12px"></div>
+  </div>
 
-    <div class="card">
-      <div class="card-title"><span>📋</span> Vista previa JSON del CV</div>
-      <div id="json-preview" class="json-box">// Completa el formulario para ver el JSON...</div>
-      <button class="btn btn-secondary" onclick="copyJSON()" style="margin-top:8px">📋 Copiar JSON</button>
-    </div>
+  <div class="card">
+    <div class="card-title"><span>📋</span> Vista previa JSON del CV</div>
+    <div id="json-preview" class="json-box">// Completa el formulario para ver el JSON...</div>
+    <button class="btn btn-secondary" onclick="copyJSON()" style="margin-top:8px">📋 Copiar JSON</button>
   </div>
 </div>
-
-<script src="/static/js/analysis.js" defer></script>
-</body>
+</div>
+    <script src="/static/js/analysis.js" defer></script>
+    </body>
 </html>
